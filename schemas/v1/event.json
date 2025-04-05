@@ -1,0 +1,140 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lavitrine.com/v1/event.json",
+    "title": "Cultural Event",
+    "description": "Schema for cultural events in La Vitrine's platform",
+    "type": "object",
+    "required": [
+      "sourceId",
+      "id",
+      "status"
+    ],
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "nameEn": { "type": "string", "minLength": 1 }
+          },
+          "required": ["nameEn"]
+        },
+        "then": {
+          "properties": {
+            "nameFr": { "type": "string" }
+          }
+        },
+        "else": {
+          "required": ["nameFr"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "descriptionEn": { "type": "string", "minLength": 1 }
+          },
+          "required": ["descriptionEn"]
+        },
+        "then": {
+          "properties": {
+            "descriptionFr": { "type": "string" }
+          }
+        },
+        "else": {
+          "required": ["descriptionFr"]
+        }
+      }
+    ],
+    "properties": {
+      "sourceId": {
+        "type": "string",
+        "description": "Identifier of the data source. Usually the name or acronym of the source. For the same source, this identifier will always have the same value for all data.",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["billetterie_1"]
+      },
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for each event",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["event-1234a567"]
+      },
+      "nameFr": {
+        "type": "string",
+        "description": "Name of the show or exhibition in French (without the artist's name). Required only if nameEn is empty.",
+        "maxLength": 200
+      },
+      "nameEn": {
+        "type": "string",
+        "description": "Name of the show or exhibition in English (without the artist's name). Required only if nameFr is empty.",
+        "maxLength": 200
+      },
+      "descriptionFr": {
+        "type": "string",
+        "description": "Text description of the Event in French, supporting rich text. Required only if descriptionEn is empty.",
+        "maxLength": 5000
+      },
+      "descriptionEn": {
+        "type": "string",
+        "description": "Text description of the Event in English, supporting rich text. Required only if descriptionFr is empty.",
+        "maxLength": 5000
+      },
+      "imageId": {
+        "type": "string",
+        "description": "Proprietary identifier of the source in relation to the Image CSV",
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "status": {
+        "type": "string",
+        "description": "Indicates the status of the Event, which defaults to 'Scheduled'",
+        "default": "Scheduled",
+        "enum": ["Scheduled", "Cancelled", "MovedOnline"]
+      },
+      "audience": {
+        "type": "array",
+        "description": "Indicates the type(s) of audiences",
+        "items": {
+          "type": "string",
+          "enum": ["General", "With baby", "Toddler", "Childhood", "Children", "Youth", "Adult", "Elder", "Family"]
+        }
+      },
+      "isSilent": {
+        "type": "boolean",
+        "description": "Indicates if the show is silent or with speech"
+      },
+      "languages": {
+        "type": "array",
+        "description": "Indicates the language(s) of the show",
+        "items": {
+          "type": "string",
+          "description": "Language codes from the IETF BCP 47 standard",
+          "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z]{2,3})?$"
+        },
+        "examples": [["fr"], ["en"], ["fr", "en"]]
+      },
+      "mainTermId": {
+        "type": "string",
+        "description": "Proprietary identifier of the main discipline of the event from the source in relation to the DefinedTerms CSV",
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "secondaryTermIds": {
+        "type": "array",
+        "description": "Proprietary identifier(s) of the secondary discipline(s) and/or genre(s) from the source in relation to the DefinedTerms CSV",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        }
+      },
+      "sameAs": {
+        "type": "array",
+        "description": "List of known identifiers/URIs on the event from sources other than the source issuing the CSV",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "lastModified": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Date of last modification of the event"
+      }
+    },
+    "additionalProperties": false
+  }

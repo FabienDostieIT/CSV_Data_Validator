@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 90%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 98%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 262 83.3% 24.7%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 262 83.3% 24.7%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83.3% 24.7%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 220 10% 12%;
+    --foreground: 210 40% 98%;
+    --card: 220 10% 16%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 10% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 215 14% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 14% 20%;
+    --muted-foreground: 215 20.2% 75%;
+    --accent: 263.4 70% 50.4%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 14% 20%;
+    --input: 215 14% 20%;
+    --ring: 263.4 70% 50.4%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom animations */
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Light sweep animation */
+@keyframes light-sweep {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+    opacity: 0.1;
+  }
+  100% {
+    transform: translateX(100%) skewX(-15deg);
+    opacity: 0.1;
+  }
+}
+
+/* Custom scrollbar for code editor */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 0, 125, 0.2);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(122, 104, 255, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 0, 125, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(122, 104, 255, 0.5);
+}
+

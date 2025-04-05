@@ -1,0 +1,33 @@
+{
+  "sourceId": "partner123",
+  "id": "event123",
+  "nameFr": "Concert de musique classique",
+  "nameEn": "Classical Music Concert",
+  "descriptionFr": "Un magnifique concert de musique classique avec l'orchestre symphonique de Montréal.",
+  "descriptionEn": "A beautiful classical music concert with the Montreal Symphony Orchestra.",
+  "status": "Scheduled",
+  "startDate": "2023-05-15",
+  "endDate": "2023-05-15",
+  "startTime": "19:30",
+  "endTime": "21:30",
+  "placeId": "place123",
+  "price": {
+    "type": "Range",
+    "currency": "CAD",
+    "minValue": 25.0,
+    "maxValue": 75.0
+  },
+  "categoryTags": ["Music", "Classical", "Orchestra"],
+  "performerNames": ["Orchestre symphonique de Montréal", "Jane Smith"],
+  "isAccessible": true,
+  "accessibilityFeatures": ["Wheelchair Access", "Assistive Listening", "ASL Interpretation"],
+  "images": [
+    {
+      "url": "https://example.com/images/concert1.jpg",
+      "altText": "Orchestra performing on stage",
+      "width": 1200,
+      "height": 800
+    }
+  ],
+  "ticketPurchaseUrl": "https://example.com/tickets/event123"
+} 

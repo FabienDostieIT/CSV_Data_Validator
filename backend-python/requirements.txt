@@ -1,0 +1,5 @@
+json-schema-for-humans>=0.42.0
+PyYAML>=6.0.1
+markdown>=3.5.1
+python-frontmatter>=1.0.1
+pathlib>=1.0.1 

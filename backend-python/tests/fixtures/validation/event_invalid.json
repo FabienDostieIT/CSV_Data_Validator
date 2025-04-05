@@ -1,0 +1,33 @@
+{
+  "sourceId": "partner123",
+  "id": "event456",
+  "nameFr": "",
+  "nameEn": "Incomplete Concert",
+  "descriptionFr": "Un exemple d'événement avec des données invalides.",
+  "descriptionEn": "",
+  "status": "invalid-status",
+  "startDate": "2023-13-45",
+  "endDate": "2023-06-31",
+  "startTime": "25:00",
+  "endTime": "18:75",
+  "placeId": "",
+  "price": {
+    "type": "invalid-type",
+    "currency": "USD",
+    "min": "ten",
+    "max": "twenty"
+  },
+  "categoryTags": "music",
+  "performerNames": 123,
+  "isAccessible": "yes",
+  "accessibilityFeatures": {
+    "feature": "Wheelchair Access"
+  },
+  "images": {
+    "url": "not-a-url",
+    "altText": 123,
+    "width": "800px",
+    "height": "600px"
+  },
+  "ticketPurchaseUrl": "invalid-url"
+} 

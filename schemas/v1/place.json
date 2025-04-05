@@ -1,0 +1,222 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lavitrine.com/v1/place.json",
+    "title": "Place",
+    "description": "Schema for places in La Vitrine's platform, including physical venues, sectors, and virtual locations",
+    "type": "object",
+    "required": [
+      "sourceId",
+      "id",
+      "locationType",
+      "containedInPlaceStatus"
+    ],
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "nameEn": { "type": "string", "minLength": 1 }
+          },
+          "required": ["nameEn"]
+        },
+        "then": {
+          "properties": {
+            "nameFr": { "type": "string" }
+          }
+        },
+        "else": {
+          "required": ["nameFr"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "descriptionEn": { "type": "string", "minLength": 1 }
+          },
+          "required": ["descriptionEn"]
+        },
+        "then": {
+          "properties": {
+            "descriptionFr": { "type": "string" }
+          }
+        },
+        "else": {
+          "required": ["descriptionFr"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "locationType": { "enum": ["Virtual Location"] }
+          }
+        },
+        "then": {
+          "required": ["urlFr", "urlEn"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "locationType": { "enum": ["Place", "Sector"] }
+          }
+        },
+        "then": {
+          "required": ["addressStreet", "addressCity", "addressRegion", "addressPostalCode", "addressCountry"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "containedInPlaceStatus": { "enum": [true] }
+          }
+        },
+        "then": {
+          "required": ["containedInPlaceId"]
+        }
+      }
+    ],
+    "properties": {
+      "sourceId": {
+        "type": "string",
+        "description": "Identifier of the data source. Usually the name or acronym of the source. For the same source, this identifier will always have the same value for all data.",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["billeterie_1"]
+      },
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for each place",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["place-1234a567"]
+      },
+      "locationType": {
+        "type": "string",
+        "description": "Information about the type of place",
+        "enum": ["Place", "Sector", "Virtual Location", "Unknown"],
+        "examples": ["Place"]
+      },
+      "nameFr": {
+        "type": "string",
+        "description": "Name of the place in French. Required only if nameEn is empty.",
+        "maxLength": 200,
+        "examples": ["Bibliothèque publique juive"]
+      },
+      "nameEn": {
+        "type": "string",
+        "description": "Name of the place in English. Required only if nameFr is empty.",
+        "maxLength": 200,
+        "examples": ["Jewish Public Library"]
+      },
+      "descriptionFr": {
+        "type": "string",
+        "description": "Text description of the place in French, supporting rich text. Required only if descriptionEn is empty.",
+        "maxLength": 5000,
+        "examples": ["Lieu de diffusion des arts de la scène depuis 1971, le Grand Théâtre de Québec procure un lieu de résidence aux organismes majeurs, favorise l'accessibilité aux différentes formes d'art de la scène et fait la promotion de la vie artistique et culturelle à l'échelle provinciale."]
+      },
+      "descriptionEn": {
+        "type": "string",
+        "description": "Text description of the place in English, supporting rich text. Required only if descriptionFr is empty.",
+        "maxLength": 5000,
+        "examples": ["A venue for the performing arts since 1971, the Grand Théâtre de Québec provides a place of residence for major organizations, promotes accessibility to various forms of performing art and promotes artistic and cultural life on a provincial scale."]
+      },
+      "containedInPlaceStatus": {
+        "type": "boolean",
+        "description": "Indicates the state of belonging to a Place to define the relationships of rooms or stages inside a defined location",
+        "default": false,
+        "examples": [false]
+      },
+      "containedInPlaceId": {
+        "type": "string",
+        "description": "Unique identifier that refers to a Place containing another Place (e.g., building containing a room or a park containing a specific stage). Required if containedInPlaceStatus is true.",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["place-789a567"]
+      },
+      "imageId": {
+        "type": "string",
+        "description": "Proprietary identifier from the Images table",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "examples": ["img-12345"]
+      },
+      "urlFr": {
+        "type": "string",
+        "format": "uri",
+        "description": "Unique URL to access a virtual location or the place's French website. Required if locationType is Virtual Location.",
+        "examples": ["https://sallevirtuelle.com/fr/salle12234/"]
+      },
+      "urlEn": {
+        "type": "string",
+        "format": "uri",
+        "description": "Unique URL to access a virtual location or the place's English website. Required if locationType is Virtual Location.",
+        "examples": ["https://sallevirtuelle.com/en/salle12234/"]
+      },
+      "websiteFr": {
+        "type": "string",
+        "format": "uri",
+        "description": "Unique URL of the Place (about the place, about the hall) in French",
+        "examples": ["https://www.placedesarts.com/"]
+      },
+      "websiteEn": {
+        "type": "string",
+        "format": "uri",
+        "description": "Unique URL of the Place (about the place, about the hall) in English",
+        "examples": ["https://www.placedesarts.com/en"]
+      },
+      "addressStreet": {
+        "type": "string",
+        "description": "Street address, including civic number, street name, street type and cardinal orientation. Required if locationType is Place or Sector.",
+        "examples": ["269 Bd René-Lévesque E"]
+      },
+      "addressCity": {
+        "type": "string",
+        "description": "Name of the city (recognized nomenclature e.g. Canada Post). Required if locationType is Place or Sector.",
+        "examples": ["Victoriaville"]
+      },
+      "addressRegion": {
+        "type": "string",
+        "description": "Province/two-letter code in uppercase. Required if locationType is Place or Sector.",
+        "pattern": "^[A-Z]{2}$",
+        "examples": ["QC"]
+      },
+      "addressPostalCode": {
+        "type": "string",
+        "description": "Alpha-numeric characters imposed at 6 relating to POSTAL CODES in Quebec. Required if locationType is Place or Sector.",
+        "pattern": "^[A-Za-z]\\d[A-Za-z][ -]?\\d[A-Za-z]\\d$",
+        "examples": ["G1R 2B3"]
+      },
+      "addressCountry": {
+        "type": "string",
+        "description": "Country/3 letter uppercase code (ISO 3166). Required if locationType is Place or Sector.",
+        "pattern": "^[A-Z]{3}$",
+        "examples": ["CAN"]
+      },
+      "maxCapacity": {
+        "type": "integer",
+        "description": "Number representing the maximum capacity of the place",
+        "minimum": 0,
+        "examples": [250]
+      },
+      "definedTermIds": {
+        "type": "array",
+        "description": "Proprietary identifier(s) of the secondary genre(s) from the source in relation to the DefinedTerms CSV",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "examples": [["kw-12345"]]
+      },
+      "sameAs": {
+        "type": "array",
+        "description": "List of known unique identifiers/URIs on the Place from sources other than the source issuing the CSV",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "examples": [["https://www.wikidata.org/wiki/Q28740132"]]
+      },
+      "lastModified": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Date of last modification of the place",
+        "examples": ["2025-01-31T01:00:00Z"]
+      }
+    },
+    "additionalProperties": false
+  }

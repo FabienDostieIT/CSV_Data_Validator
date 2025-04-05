@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Test Schema",
+  "description": "A simple schema for testing documentation generation",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the test item"
+    }
+  },
+  "required": ["id", "name"]
+} 
