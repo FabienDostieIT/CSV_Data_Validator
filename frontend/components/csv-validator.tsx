@@ -8,13 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import CodeEditor, { EditorErrorDecoration } from "@/components/code-editor"
-import ValidationResults from "@/components/validation-results"
 import ThemeToggle from "@/components/theme-toggle"
 import { useTheme } from "@/components/theme-provider"
-import Ajv, { SchemaObject, ErrorObject, ValidateFunction } from "ajv"
-import addFormats from "ajv-formats"
 import * as jsonc from 'jsonc-parser'
 import Papa from 'papaparse'
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 // Placeholder schemas for dropdown (to be replaced with dynamic loading)
 const availableSchemas: Record<string, string> = {
@@ -35,9 +34,8 @@ interface IRange {
 // Define a type for our formatted errors
 interface FormattedValidationError {
   row: number;
-  path: string; // JSON path within the row object
-  message: string;
-  // Potentially add column name later if mapping is feasible
+  path: string; // JSON path within the row object (cleaned, no leading '/')
+  message: string; // Potentially enhanced message
 }
 
 export default function CsvValidator() {
@@ -55,19 +53,63 @@ export default function CsvValidator() {
   const [isLoadingCsv, setIsLoadingCsv] = useState<boolean>(false);
   const [csvFileName, setCsvFileName] = useState<string>("");
   const [validationResults, setValidationResults] = useState<FormattedValidationError[]>([]);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState<boolean>(false); // State for success animation
+  const [showFailureOverlay, setShowFailureOverlay] = useState<boolean>(false); // State for failure animation
 
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden file input
 
   const { toast } = useToast();
   const { theme } = useTheme();
+  const workerRef = useRef<Worker | null>(null); // Ref for the worker
 
-  const ajv = useRef<Ajv | null>(null);
-
-  // Initialize AJV instance
+  // --- Worker Setup and Cleanup ---
   useEffect(() => {
-    ajv.current = new Ajv({ allErrors: true });
-    addFormats(ajv.current);
-  }, []);
+    // Create worker instance
+    workerRef.current = new Worker('/csv-validator.worker.js'); // Path relative to public folder
+
+    // Message handler
+    workerRef.current.onmessage = (event) => {
+      const { type, payload } = event.data;
+
+      if (type === 'errorBatch') {
+        // Append errors incrementally
+        setValidationResults(prevErrors => [...prevErrors, ...payload]);
+      } else if (type === 'complete') {
+        const { totalErrors } = payload;
+        setIsValidatingCsv(false); // Validation finished
+
+        if (totalErrors === 0) {
+          // Success Case
+          toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema." });
+          setShowSuccessOverlay(true);
+          setTimeout(() => setShowSuccessOverlay(false), 2000);
+        } else {
+          // Data Validation Failure Case
+          toast({ variant: "destructive", title: "Validation Failed", description: `Found ${totalErrors} error(s) in the CSV data. See results below.` });
+           setShowFailureOverlay(true);
+           setTimeout(() => setShowFailureOverlay(false), 2000);
+        }
+      } else if (type === 'error') {
+        // Worker encountered an internal error
+        console.error("Worker Error:", payload.message);
+        toast({ variant: "destructive", title: "Validation Error", description: `An internal error occurred during validation: ${payload.message}` });
+        setIsValidatingCsv(false);
+      }
+    };
+
+    // Error handler
+    workerRef.current.onerror = (error) => {
+      console.error("Worker Error Event:", error);
+      toast({ variant: "destructive", title: "Worker Error", description: "Failed to load or run the validation worker." });
+      setIsValidatingCsv(false);
+    };
+
+    // Cleanup on component unmount
+    return () => {
+      console.log("Terminating worker");
+      workerRef.current?.terminate();
+    };
+  }, [toast]); // Add toast dependency
 
   // --- Effect to fetch schema list on mount ---
   useEffect(() => {
@@ -243,78 +285,68 @@ export default function CsvValidator() {
   };
 
   const performCsvValidation = useCallback(async () => {
-    if (!ajv.current) {
-      toast({ variant: "destructive", title: "Error", description: "AJV validator not initialized." });
+    // Basic checks before starting worker
+    if (!workerRef.current) {
+      toast({ variant: "destructive", title: "Error", description: "Validation worker not initialized." });
       return;
     }
-    if (!selectedSchemaName || !selectedSchemaContent) {
-      toast({ variant: "destructive", title: "Error", description: "Please select a schema first." });
-      return;
-    }
-    if (csvData.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No CSV data loaded or parsed to validate." });
-      return;
-    }
+     if (!selectedSchemaName || !selectedSchemaContent) {
+       toast({ variant: "destructive", title: "Error", description: "Please select a schema first." });
+       return;
+     }
+     if (csvData.length === 0 && !csvRawText.trim()) { // Check both raw and parsed
+       toast({ variant: "destructive", title: "Error", description: "No CSV data loaded to validate." });
+       return;
+     }
+     // If we have raw text but no csvData (e.g., user edited raw), re-parse first
+     // Note: This parse happens on main thread, could be moved to worker too if needed
+     let dataToValidate = csvData;
+     if (dataToValidate.length === 0 && csvRawText.trim()) {
+        const parseResult = Papa.parse<Record<string, any>>(csvRawText, {
+            header: true,
+            skipEmptyLines: true,
+        });
+        if (parseResult.errors.length > 0) {
+             toast({ variant: "destructive", title: "CSV Parse Error", description: `Cannot validate due to CSV parse errors: ${parseResult.errors[0].message}` });
+             return;
+        }
+        dataToValidate = parseResult.data;
+        setCsvData(dataToValidate); // Update state if reparsed
+     }
+     if (dataToValidate.length === 0){
+        toast({ variant: "destructive", title: "Error", description: "CSV data is empty after parsing." });
+        return;
+     }
 
+
+    // Reset UI state
     setIsValidatingCsv(true);
-    setValidationResults([]); // Clear previous results
-    console.log("Starting CSV validation...");
+    setValidationResults([]);
+    setShowSuccessOverlay(false);
+    setShowFailureOverlay(false);
+    console.log("Component: Sending data to worker...");
 
     let parsedSchema: any;
     try {
-      // Ensure schema content is parsed if it's still a string
+      // Ensure schema is parsed before sending
       parsedSchema = typeof selectedSchemaContent === 'string' ? JSON.parse(selectedSchemaContent) : selectedSchemaContent;
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Schema Error", description: `Failed to parse the selected schema JSON: ${err.message}` });
+      toast({ variant: "destructive", title: "Schema Error", description: `Failed to parse the selected schema JSON before sending to worker: ${err.message}` });
+      console.error("Schema parsing error:", err);
       setIsValidatingCsv(false);
       return;
     }
 
-    let validate: ValidateFunction;
-    try {
-      validate = ajv.current.compile(parsedSchema);
-      console.log("Schema compiled successfully.");
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Schema Compilation Error", description: `Failed to compile schema '${selectedSchemaName}': ${err.message}` });
-      setIsValidatingCsv(false);
-      return;
-    }
-
-    const allErrors: FormattedValidationError[] = [];
-    
-    // Use Promise.all for potential async validation in future, 
-    // but currently AJV validation is synchronous after compile.
-    // We process row by row.
-    for (let i = 0; i < csvData.length; i++) {
-      const rowData = csvData[i];
-      const csvRowNum = i + 2; // PapaParse data is 0-indexed, CSV row nums start at 1, +1 for header
-
-      const valid = validate(rowData);
-
-      if (!valid && ajv.current.errors) {
-        console.log(`Validation failed for CSV row ${csvRowNum} (data index ${i})`, ajv.current.errors);
-        ajv.current.errors.forEach((error: ErrorObject) => {
-          allErrors.push({
-            row: csvRowNum,
-            path: error.instancePath || 'N/A',
-            message: `${error.keyword}: ${error.message || 'Unknown error'}${error.params ? ` (${JSON.stringify(error.params)})` : ''}`,
-          });
-        });
+    // Send data to worker
+    workerRef.current.postMessage({
+      type: 'validate',
+      payload: {
+        csvData: dataToValidate, // Send parsed data
+        parsedSchema: parsedSchema // Send parsed schema
       }
-    }
+    });
 
-    setValidationResults(allErrors);
-    setIsValidatingCsv(false);
-
-    if (allErrors.length === 0) {
-      toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema." });
-      console.log("CSV validation completed successfully.");
-    } else {
-      toast({ variant: "destructive", title: "Validation Failed", description: `${allErrors.length} error(s) found in the CSV data.` });
-      console.log(`CSV validation completed with ${allErrors.length} errors.`);
-    }
-
-  }, [ajv, selectedSchemaName, selectedSchemaContent, csvData, toast]);
+  }, [selectedSchemaName, selectedSchemaContent, csvData, csvRawText, toast]); // Added csvRawText
 
   // Add empty handleCopySchema definition
   const handleCopySchema = () => {
@@ -408,7 +440,7 @@ export default function CsvValidator() {
           </Card>
 
           {/* Right Panel: CSV Data - Ensure Card styles */}
-          <Card className="flex flex-col h-[60vh] border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg"> {/* Ensure rounded-lg and h-[60vh] */}
+          <Card className="relative flex flex-col h-[60vh] border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg"> {/* Add relative */}
              {/* Right Panel Header - DO NOT TOUCH */}
              <CardHeader className="flex-row justify-between items-center bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-700">
                <div className="flex items-center space-x-2">
@@ -440,8 +472,8 @@ export default function CsvValidator() {
                </div>
              </CardHeader>
 
-            {/* CSV Editor Content (Keep as is) */}
-            <CardContent className="flex-grow p-0">
+            {/* CSV Editor Content - Add container for overlay */} 
+            <CardContent className="flex-grow p-0 relative"> {/* Add relative */}
               <CodeEditor
                 value={csvRawText}
                 language="plaintext"
@@ -449,6 +481,18 @@ export default function CsvValidator() {
                 onChange={setCsvRawText}
                 height="100%" // Keep height
               />
+              {/* Success Overlay */} 
+              {showSuccessOverlay && (
+                <div className="absolute inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center z-10 transition-opacity duration-300 animate-fade-in">
+                  <CheckCircle className="h-24 w-24 text-green-600" />
+                </div>
+              )}
+              {/* Failure Overlay */}
+              {showFailureOverlay && (
+                <div className="absolute inset-0 bg-red-500/20 backdrop-blur-sm flex items-center justify-center z-10 transition-opacity duration-300 animate-fade-in">
+                  <XCircle className="h-24 w-24 text-red-600" />
+                </div>
+              )}
             </CardContent>
 
             {/* Footer - Add Clear button */}
@@ -496,36 +540,53 @@ export default function CsvValidator() {
         </section>
       </main>
 
-      {/* Results Section - Keep as is */}
-      <section className="pt-6 pb-6 flex-shrink-0"> {/* Ensure results don't cause overflow */}
-         <Card className="border-[#1e007d]/10 dark:border-[#1e007d]/20 backdrop-blur-sm bg-white/90 dark:bg-zinc-600/50 shadow-lg rounded-xl">
-           <div className="flex items-center justify-between bg-[#1e007d] dark:bg-zinc-700 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600">
-                <h3 className="font-medium text-white">Validation Results</h3>
-                <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                    <Button
-                       variant="ghost" size="icon" onClick={handleCopyResults}
-                       className="hover:bg-white/10 text-white h-8 w-8"
-                       disabled={true}
-                     >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                </TooltipTrigger><TooltipContent className="z-50"><p>Copy Results JSON</p></TooltipContent></Tooltip></TooltipProvider>
-           </div>
-           <CardContent className="p-4 min-h-[150px]">
-               {validationResults.length > 0 ? (
-                   <ul>
-                       {validationResults.map((err, index) => (
-                           <li key={index} className="text-sm text-red-500 border-b border-muted/20 py-1">
-                               Row {err.row}, Path: {err.path}, Message: {err.message}
-                           </li>
-                       ))}
-                   </ul>
-               ) : (
-                   <p className="text-sm text-muted-foreground">No validation performed or no errors found.</p>
-               )}
-           </CardContent>
-         </Card>
-       </section>
+      {/* Results Section - Update Header and List Item Display */}
+      <section className="px-4 pb-4">
+        <Card className="border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 border-b border-[#1e007d]/10 dark:border-zinc-700">
+            <CardTitle className="text-base font-medium text-[#1e007d] dark:text-zinc-100">Validation Results {validationResults.length > 0 ? `(${validationResults.length} errors)` : ''}</CardTitle>
+             {/* Add Copy Button for results */} 
+             <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+               <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
+                 <Copy className="h-4 w-4" />
+               </Button>
+             </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[200px]"> {/* Adjust height as needed */}
+              <div className="p-4">
+                {isValidatingCsv ? (
+                  <div className="flex items-center justify-center text-sm text-muted-foreground h-[160px]"> {/* Added fixed height during load */}
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing data... Errors will appear here shortly.
+                  </div>
+                ) : validationResults.length > 0 ? (
+                  // Replace UL with Accordion
+                  <Accordion type="multiple" className="w-full">
+                    {validationResults.map((err, index) => (
+                      <AccordionItem value={`error-${index}`} key={index} className="border-b border-muted/20 last:border-b-0">
+                        <AccordionTrigger className="text-sm text-left hover:no-underline px-4 py-2 text-red-600 dark:text-red-400">
+                          <div className="flex items-center space-x-2 flex-grow">
+                             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                             <span className="font-semibold">Row {err.row}:</span>
+                             <span className="truncate flex-grow">{err.path !== 'N/A' ? `${err.path} - ` : ''}{err.message.split('.')[0]}</span> {/* Show path and first part of message */} 
+                           </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground pt-1 pb-3 px-4 pl-10"> {/* Indent content */} 
+                           <p><span className="font-semibold">Property:</span> {err.path || 'N/A'}</p>
+                           <p><span className="font-semibold">Message:</span> {err.message}</p>
+                         </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No data validation errors found.</p>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Hidden File Input (Ensure it's still here) */}
        <input
