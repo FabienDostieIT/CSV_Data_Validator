@@ -15,12 +15,17 @@ import { Check, Copy, Download, FileText, Upload, Loader2, CheckCircle, XCircle,
 import Papa from 'papaparse';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
-interface ValidationResult {
+// Interface for a single validation issue (error or warning)
+interface ValidationIssue {
+    property: string;
+    message: string;
+}
+
+// Interface for combined results per row
+interface RowValidationResults {
     row: number;
-    errors: {
-        property: string;
-        message: string;
-    }[];
+    errors: ValidationIssue[];
+    warnings: ValidationIssue[];
 }
 
 export default function CsvValidator() {
@@ -30,7 +35,10 @@ export default function CsvValidator() {
     const [selectedSchemaContent, setSelectedSchemaContent] = useState<any>(''); // Should ideally be parsed JSON object or string
     const [csvRawText, setCsvRawText] = useState<string>("");
     const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
-    const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
+    const [validationResults, setValidationResults] = useState<RowValidationResults[]>([]); // Updated state type
+    const [totalErrorCount, setTotalErrorCount] = useState<number>(0);
+    const [totalWarningCount, setTotalWarningCount] = useState<number>(0);
+    const [visibleResultCount, setVisibleResultCount] = useState<number>(20); // State for visible results
     const [isLoadingSchemaList, setIsLoadingSchemaList] = useState<boolean>(true);
     const [isLoadingSchemaContent, setIsLoadingSchemaContent] = useState<boolean>(false);
     const [isValidatingCsv, setIsValidatingCsv] = useState<boolean>(false);
@@ -46,19 +54,25 @@ export default function CsvValidator() {
     const { toast } = useToast();
     const { theme } = useTheme();
     const workerRef = useRef<Worker | null>(null); // Ref for the worker
-    const accumulatedErrorsRef = useRef<ValidationResult[]>([]); // Ref to store errors before final state update
+    const accumulatedResultsRef = useRef<RowValidationResults[]>([]); // Updated ref type
 
     // Ref for the scrollable element
     const parentRef = useRef<HTMLDivElement>(null);
 
-    // Virtualizer hook - now using measurement
+    // Derived state for displayed results
+    const displayedResults = validationResults.slice(0, visibleResultCount);
+
+    // Update Virtualizer configuration
     const rowVirtualizer = useVirtualizer({
-        count: validationResults.length,
+        count: displayedResults.length, // Use displayed results length
         getScrollElement: () => parentRef.current,
-        // Revert estimateSize to a small fixed value, as measurement will handle actual height
-        estimateSize: () => 45,
-        // Add the measureElement function reference (will be assigned in JSX)
-        overscan: 10,
+        estimateSize: () => 50, // Adjust estimate as needed (trigger + content padding)
+        overscan: 5,
+        measureElement: (element) => {
+             // Find the AccordionTrigger inside the measured element if needed for better height
+            const trigger = element.querySelector('[data-state="closed"], [data-state="open"]'); 
+            return trigger?.getBoundingClientRect().height || element.getBoundingClientRect().height;
+         }
     });
 
     // --- Worker Setup and Cleanup ---
@@ -68,29 +82,34 @@ export default function CsvValidator() {
 
         // Message handler
         workerRef.current.onmessage = (event) => {
-          console.log("Component: Received message from worker:", event.data.type);
           const { type, payload } = event.data;
 
           if (type === 'ready') {
             console.log("Component: Worker is ready.");
-            // Worker is ready, maybe enable UI elements if they were disabled
-          } else if (type === 'errorBatch') {
-            console.log(`Component: Received error batch of size ${payload.errors.length}`);
-            // Accumulate errors instead of setting state directly
-            accumulatedErrorsRef.current.push(...payload.errors);
+          } else if (type === 'resultsBatch') { // Updated message type
+            console.log(`Component: Received results batch of size ${payload.results.length}`);
+            // Accumulate combined results
+            accumulatedResultsRef.current.push(...payload.results);
           } else if (type === 'complete') {
-            console.log(`Component: Received complete message. Total errors: ${payload.totalErrors}`);
-            setValidationResults(accumulatedErrorsRef.current); // Update state once with all errors
-            console.log(`Component: Updating validationResults state with final ${accumulatedErrorsRef.current.length} errors.`);
-            setOverallCsvStatus(payload.totalErrors === 0 ? 'valid' : 'invalid');
+            console.log(`Component: Received complete message. Total errors: ${payload.totalErrors}, Total warnings: ${payload.totalWarnings}`);
+            const finalResults = accumulatedResultsRef.current;
+            setValidationResults(finalResults); // Set the full results
+            setTotalErrorCount(payload.totalErrors);
+            setTotalWarningCount(payload.totalWarnings);
+            setVisibleResultCount(Math.min(20, finalResults.length)); // Reset visible count
+            console.log(`Component: Updating state with final ${finalResults.length} row results.`);
+            setOverallCsvStatus(payload.totalErrors === 0 ? 'valid' : 'invalid'); // Base overall status on errors only?
             setIsValidatingCsv(false);
             console.log("Component: Setting isValidatingCsv to false.");
-            if (payload.totalErrors === 0) {
-              toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema." });
+            if (payload.totalErrors === 0 && payload.totalWarnings === 0) {
+              toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema with no warnings." });
               setShowSuccessOverlay(true);
               setTimeout(() => setShowSuccessOverlay(false), 2000);
+            } else if (payload.totalErrors === 0 && payload.totalWarnings > 0) {
+                toast({ variant: "default", title: "Validation Successful (with warnings)", description: `CSV data conforms to the schema, but ${payload.totalWarnings} warning(s) were generated. See results below.` });
+                 // Optional: Show a different overlay or none for success with warnings?
             } else {
-              toast({ variant: "destructive", title: "Validation Failed", description: `Found ${payload.totalErrors} error(s) in the CSV data. See results below.` });
+              toast({ variant: "destructive", title: "Validation Failed", description: `Found ${payload.totalErrors} error(s) and ${payload.totalWarnings} warning(s) in the CSV data. See results below.` });
               setShowFailureOverlay(true);
               setTimeout(() => setShowFailureOverlay(false), 2000);
             }
@@ -101,6 +120,9 @@ export default function CsvValidator() {
             console.log("Component: Setting isValidatingCsv to false due to worker error.");
             setIsValidatingCsv(false);
             setOverallCsvStatus('error');
+            setTotalErrorCount(0); // Reset counts on error
+            setTotalWarningCount(0);
+            setVisibleResultCount(20); // Reset on error too
           }
         };
 
@@ -210,14 +232,15 @@ export default function CsvValidator() {
           Papa.parse<Record<string, any>>(text, {
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: true, // Attempt to convert numeric/boolean strings
+            dynamicTyping: false, // Ensure values are parsed as strings initially
             complete: (results) => {
+              // Check for Papa Parse errors specifically
               if (results.errors.length > 0) {
                 console.error('CSV Parsing Errors:', results.errors);
                 // Add null checks for the first error object
                 const firstError = results.errors[0];
                 // Use nullish coalescing for defaults. Add 1 to row index.
-                const errorRow = (firstError?.row ?? -1) + 1;
+                const errorRow = (firstError?.row ?? -1) + 1; 
                 const errorMessage = firstError?.message ?? 'Unknown parsing error';
                 setValidationResults([
                   {
@@ -229,13 +252,14 @@ export default function CsvValidator() {
                         message: errorMessage, // Use checked/defaulted message
                       },
                     ],
+                    warnings: [],
                   },
                 ]);
                 setCsvData([]);
                 setOverallCsvStatus('invalid');
               } else {
-                setCsvData(results.data);
-                setOverallCsvStatus('valid');
+                setCsvData(results.data); // Keep this, worker will handle typing
+                setOverallCsvStatus('pending'); // Set to pending as validation hasn't run
                 // Optionally trigger validation immediately after upload
                 // performCsvValidation(results.data, selectedSchemaContent);
               }
@@ -252,6 +276,7 @@ export default function CsvValidator() {
                       message: error.message,
                     },
                   ],
+                  warnings: [],
                 },
               ]);
               setCsvData([]);
@@ -293,7 +318,7 @@ export default function CsvValidator() {
             const parseResult = Papa.parse<Record<string, any>>(csvRawText, {
                 header: true,
                 skipEmptyLines: true,
-                dynamicTyping: true,
+                dynamicTyping: false, // Ensure values are parsed as strings initially here too
             });
             if (parseResult.errors.length > 0) {
                  toast({ variant: "destructive", title: "CSV Parse Error", description: `Cannot validate due to CSV parse errors: ${parseResult.errors[0].message}` });
@@ -308,10 +333,13 @@ export default function CsvValidator() {
          }
 
 
-        // Reset UI state AND accumulated errors ref
+        // Reset UI state AND accumulated results ref
         setIsValidatingCsv(true);
         setValidationResults([]);
-        accumulatedErrorsRef.current = []; // Reset accumulator before starting
+        accumulatedResultsRef.current = []; 
+        setTotalErrorCount(0); 
+        setTotalWarningCount(0);
+        setVisibleResultCount(20); // Reset visible count here too!
         setShowSuccessOverlay(false);
         setShowFailureOverlay(false);
         console.log("Component: Sending data to worker...");
@@ -331,12 +359,12 @@ export default function CsvValidator() {
         workerRef.current.postMessage({
           type: 'validate',
           payload: {
-            csvData: dataToValidate, // Send parsed data
-            parsedSchema: parsedSchema // Send parsed schema
+            csvData: dataToValidate, 
+            parsedSchema: parsedSchema 
           }
         });
 
-      }, [selectedSchemaName, selectedSchemaContent, csvData, csvRawText, toast]); // Added csvRawText
+      }, [selectedSchemaName, selectedSchemaContent, csvData, csvRawText, toast]);
 
       const handleCopySchema = () => {
         navigator.clipboard.writeText(selectedSchemaContent).then(() => {
@@ -356,6 +384,9 @@ export default function CsvValidator() {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        setTotalErrorCount(0);
+        setTotalWarningCount(0);
+        setVisibleResultCount(20); // Reset on clear
         toast({ title: "Info", description: "CSV data cleared." });
       }, [toast]);
 
@@ -370,12 +401,17 @@ export default function CsvValidator() {
       };
 
       const handleCopyResults = () => {
+        // Include warnings in copied results
         const resultsText = JSON.stringify(validationResults, null, 2);
         navigator.clipboard.writeText(resultsText).then(() => {
-          toast({ title: "Results Copied!", description: "Validation results copied to clipboard." });
+          toast({ title: "Results Copied!", description: "Validation results (errors and warnings) copied to clipboard." });
         }, (err) => {
           toast({ title: "Copy Failed", description: "Could not copy results.", variant: "destructive" });
         });
+      };
+
+      const handleShowMoreResults = () => {
+        setVisibleResultCount(prev => Math.min(prev + 20, validationResults.length));
       };
 
       // --- JSX Structure Update ---
@@ -546,82 +582,98 @@ export default function CsvValidator() {
 
           {/* Results Section - Adjusted for Height and Clarity */}
           <section className="px-0 pb-4">
-            <Card className="border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
-               {/* Header */}
-               <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4 px-4 border-b border-[#1e007d]/10 dark:border-zinc-700">
-                 <CardTitle className="text-base font-medium text-[#1e007d] dark:text-zinc-100">Validation Results {validationResults.length > 0 ? `(${validationResults.length} errors)` : ''}</CardTitle>
-                 {/* Copy Button */} 
-                 <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                   <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
-                     <Copy className="h-4 w-4" />
-                   </Button>
-                 </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
+            <Card className="h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                <div className="flex items-center space-x-2">
+                    {/* Dynamically update icon based on overall status? */}
+                    {getStatusIcon(overallCsvStatus)}
+                    <CardTitle className="text-lg font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
+                    {/* Show counts */} 
+                    {(totalErrorCount > 0 || totalWarningCount > 0) && (
+                        <span className="text-sm text-muted-foreground">
+                            ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
+                            {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
+                            {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
+                        </span>
+                    )}
+                </div>
+                {/* Copy Button */} 
+                <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
               </CardHeader>
-              <CardContent className="p-0">
-                 {/* Use ScrollArea with Increased Height */}
-                 <ScrollArea className="h-[65vh]" ref={parentRef}> {/* Increased height */}
-                   {/* Container with full scroll height */}
+              <CardContent className="p-0 flex-grow overflow-hidden">
+                 <ScrollArea ref={parentRef} className="h-full">
+                   {/* Virtualized List */} 
                    <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                     {isValidatingCsv ? (
-                       <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"> 
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analyzing data... Errors will appear here shortly.
-                       </div>
-                     ) : validationResults.length === 0 ? (
-                       <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                          No data validation errors found.
-                       </div>
-                     ) : (
-                       // Render only virtual items
+                     {displayedResults.length === 0 && !isValidatingCsv && (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : (validationResults.length > 0 ? '' : 'No issues found.') /* Adjust placeholder */}
+                        </div>
+                     )}
+                     {isValidatingCsv && (
+                         <div className="flex items-center justify-center h-full text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
+                     )}
+                     {displayedResults.length > 0 && (
                        rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                         const result = validationResults[virtualRow.index]; // Changed variable name for clarity
-                         if (!result) return null;
+                         const result = displayedResults[virtualRow.index]; 
+                         const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
 
                          return (
                            <div
-                             key={virtualRow.key}
+                             key={result.row}
+                             data-index={virtualRow.index}
+                             ref={rowVirtualizer.measureElement}
                              style={{
                                position: 'absolute',
                                top: 0,
                                left: 0,
                                width: '100%',
-                               height: `${virtualRow.size}px`,
                                transform: `translateY(${virtualRow.start}px)`,
+                               padding: '0' // Apply padding within Accordion
                              }}
                            >
-                             {/* Render the AccordionItem for this error */}
-                             <Accordion
+                             <Accordion 
                                 type="single"
                                 collapsible
                                 className="w-full border-b border-muted/20 px-4"
-                                value={openAccordionValue} // Control open state
-                                onValueChange={setOpenAccordionValue} // Update open state
+                                value={openAccordionValue} 
+                                onValueChange={setOpenAccordionValue}
                               >
                                 <AccordionItem
-                                    ref={rowVirtualizer.measureElement} // Measure the item itself
-                                    data-index={virtualRow.index} // Associate measurement with index
                                     value={`item-${result.row}`}
                                     className="border-b-0"
-                                 >
-                                    <AccordionTrigger className="text-sm text-left hover:no-underline py-2 group data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300">
+                                 > 
+                                    <AccordionTrigger className={`text-sm text-left hover:no-underline py-2 group ${rowSeverity === 'error' ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300' : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'}`}>
                                     <div className="flex items-center space-x-2 flex-grow truncate">
-                                        <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                                        {rowSeverity === 'error' ? 
+                                           <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> : 
+                                           <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
                                         <span className="font-semibold">Row {result.row}:</span>
-                                        {/* Display first error message, add indicator for more */}
                                         <span className="truncate flex-grow text-muted-foreground">
-                                            {result.errors[0]?.message || 'Unknown error'}
-                                            {result.errors.length > 1 ? ` (+${result.errors.length - 1} more)` : ''}
+                                            {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
+                                            {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
                                         </span>
                                     </div>
-                                     {/* Chevron Icon indicating expandability */}
                                      <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
                                     </AccordionTrigger>
-                                    {/* Added padding to content & slightly different background */}
                                     <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
                                          {result.errors.map((err, index) => (
-                                            <div key={index} className="text-muted-foreground">
-                                                 <span className="font-semibold text-foreground">Property:</span> {err.property || 'N/A'} <br />
-                                                 <span className="font-semibold text-foreground">Message:</span> {err.message}
+                                            <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
+                                                 <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
+                                                 <div>
+                                                     <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
+                                                 </div>
+                                            </div>
+                                        ))}
+                                         {result.warnings.map((warn, index) => (
+                                            <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
+                                                 <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
+                                                 <div>
+                                                      <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
+                                                 </div>
                                             </div>
                                         ))}
                                     </AccordionContent>
@@ -634,6 +686,18 @@ export default function CsvValidator() {
                    </div>
                  </ScrollArea>
               </CardContent>
+                {/* Footer for Load More button */} 
+                 {validationResults.length > visibleResultCount && (
+                    <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+                        <Button 
+                            variant="secondary" 
+                            onClick={handleShowMoreResults}
+                            disabled={isValidatingCsv}
+                        >
+                            Show More Results ({displayedResults.length} / {validationResults.length})
+                        </Button>
+                    </CardFooter>
+                )}
             </Card>
           </section>
 

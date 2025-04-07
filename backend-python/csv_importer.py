@@ -229,7 +229,7 @@ def get_validation_report(validation_results: Dict[str, Any]) -> str:
     report = []
     
     report.append(f"Validation Report")
-    report.append(f"================")
+    report.append(f"==================")
     report.append(f"Total rows: {validation_results['total']}")
     report.append(f"Valid: {validation_results['valid']}")
     report.append(f"Invalid: {validation_results['invalid']}")
