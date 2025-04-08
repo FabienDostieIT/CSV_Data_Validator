@@ -66,6 +66,16 @@
       {
         "if": {
           "properties": {
+            "locationType": { "enum": ["AdministrativeArea"] }
+          }
+        },
+        "then": {
+          "required": ["addressCity", "addressRegion", "addressCountry"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
             "containedInPlaceStatus": { "enum": [true] }
           }
         },
@@ -90,7 +100,7 @@
       "locationType": {
         "type": "string",
         "description": "Information about the type of place",
-        "enum": ["Place", "Sector", "Virtual Location", "Unknown"],
+        "enum": ["Place", "Sector", "AdministrativeArea", "Virtual Location", "Unknown"],
         "examples": ["Place"]
       },
       "nameFr": {

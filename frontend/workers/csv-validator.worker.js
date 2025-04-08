@@ -98,6 +98,20 @@ function convertValueBasedOnSchema(value, propSchema) {
     }
 }
 
+// Helper function to get nested value using instancePath
+function getValueFromPath(obj, path) {
+    if (!path || path === '/') return obj; // Return whole object if path is root
+    // Remove leading slash and split path
+    const parts = path.startsWith('/') ? path.substring(1).split('/') : path.split('/');
+    let current = obj;
+    for (const part of parts) {
+        if (current === null || typeof current !== 'object') return undefined; // Path doesn't exist
+        const key = part.includes('~') ? part.replace(/~1/g, '/').replace(/~0/g, '~') : part; // Decode JSON Pointer encoding
+        current = current[key];
+    }
+    return current;
+}
+
 self.onmessage = (event) => {
   console.log('Worker: Message received:', event.data.type);
   const { type, payload } = event.data;
@@ -117,6 +131,12 @@ self.onmessage = (event) => {
       if (!ajvInstance || schema !== parsedSchema) {
         console.log('Worker: Initializing AJV and compiling schema...');
         schema = parsedSchema;
+        
+        // --- DEBUG: Log received locationType enum --- 
+        const locationTypeEnum = schema?.properties?.locationType?.enum;
+        console.log('Worker: Received locationType enum:', locationTypeEnum);
+        // --- END DEBUG --- 
+        
         ajvInstance = new Ajv({ allErrors: true });
         addFormats(ajvInstance);
         validate = ajvInstance.compile(schema);
@@ -210,21 +230,33 @@ self.onmessage = (event) => {
             }
             if (ajvErrors.length > 0) {
                 totalErrorsCount += ajvErrors.length;
-                const formattedAjvErrors = ajvErrors.map((error) => { 
-                     let detailedMessage = error?.message ?? 'Unknown error';
-                     const propertyName = error?.instancePath?.startsWith('/') ? error.instancePath.substring(1) : (error?.instancePath || 'Unknown Property');
-                     if (error.keyword === 'enum') {
-                         detailedMessage = `${propertyName}: must be one of the allowed values. Allowed: [${error.params.allowedValues.join(', ')}]`;
-                     } else if (error.keyword === 'additionalProperties') {
-                         detailedMessage = `Property '${error.params.additionalProperty}' is not allowed. Allowed properties are: [${allowedPropertiesList}]`;
-                     } else if (error.keyword === 'required') {
-                         detailedMessage = `Required property '${error.params.missingProperty}' is missing. Required properties are: [${requiredPropertiesList}]`;
-                     } else if (error.keyword === 'type') {
-                         detailedMessage = `${propertyName}: must be type '${error.params.type}'.`;
-                     } else {
-                         detailedMessage = `${propertyName}: ${detailedMessage}` // Prepend property name if not already included
-                     }
-                     return { property: propertyName, message: detailedMessage };
+                // Pass processedRowData to the mapping function
+                const formattedAjvErrors = ajvErrors.map((error) => {
+                    let detailedMessage = error?.message ?? 'Unknown error';
+                    const propertyName = error?.instancePath?.startsWith('/') ? error.instancePath.substring(1).replace(/\//g, '.') : (error?.instancePath?.replace(/\//g, '.') || 'Unknown Property'); // Convert path to dot notation
+                    
+                    // Attempt to get the problematic value
+                    const problematicValue = getValueFromPath(processedRowData, error.instancePath);
+                    const valueString = problematicValue !== undefined 
+                        ? ` (Value: ${JSON.stringify(problematicValue)})` 
+                        : ''; // Only add if value found
+
+                    // Format specific error types
+                    if (error.keyword === 'enum' && error.params?.allowedValues) {
+                        detailedMessage = `${propertyName}: Must be one of [${error.params.allowedValues.join(', ')}]${valueString}`;
+                    } else if (error.keyword === 'additionalProperties' && error.params?.additionalProperty) {
+                        detailedMessage = `Property '${error.params.additionalProperty}' is not allowed. Allowed: [${allowedPropertiesList}]`; // Value not relevant here
+                    } else if (error.keyword === 'required' && error.params?.missingProperty) {
+                        detailedMessage = `Required property '${error.params.missingProperty}' is missing. Required: [${requiredPropertiesList}]`; // Value not relevant
+                    } else if (error.keyword === 'type') {
+                        detailedMessage = `${propertyName}: Must be type '${error.params.type}'${valueString}`;
+                    } else if (error.keyword === 'pattern') {
+                         detailedMessage = `${propertyName}: Must match pattern '${error.params.pattern}'${valueString}`;
+                    } else {
+                        detailedMessage = `${propertyName}: ${detailedMessage}${valueString}`; // Append value to generic messages
+                    }
+
+                    return { property: propertyName, message: detailedMessage };
                 });
                 rowErrors.push(...formattedAjvErrors);
             } else if (!conversionErrorMsg) { // Generic if no other errors

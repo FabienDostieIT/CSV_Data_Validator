@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import CodeEditor from "@/components/code-editor"
 import ThemeToggle from "@/components/theme-toggle"
 import { useTheme } from "@/components/theme-provider"
-import { Check, Copy, Download, FileText, Upload, Loader2, CheckCircle, XCircle, AlertTriangle, X, ChevronDown } from "lucide-react"
+import { Check, Copy, Download, FileText, Upload, Loader2, CheckCircle, XCircle, AlertTriangle, X, ChevronDown, Save } from "lucide-react"
 import Papa from 'papaparse';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -33,6 +33,9 @@ export default function CsvValidator() {
     const [availableSchemaNames, setAvailableSchemaNames] = useState<string[]>([]); // List of schema filenames
     const [selectedSchemaName, setSelectedSchemaName] = useState<string>(""); // Currently selected filename
     const [selectedSchemaContent, setSelectedSchemaContent] = useState<any>(''); // Should ideally be parsed JSON object or string
+    const [uploadedSchemaContent, setUploadedSchemaContent] = useState<any | null>(null); // State for uploaded schema content
+    const [uploadedSchemaName, setUploadedSchemaName] = useState<string | null>(null); // State for uploaded schema name
+    const [useUploadedSchema, setUseUploadedSchema] = useState<boolean>(false); // Flag for using uploaded schema
     const [csvRawText, setCsvRawText] = useState<string>("");
     const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
     const [validationResults, setValidationResults] = useState<RowValidationResults[]>([]); // Updated state type
@@ -44,29 +47,30 @@ export default function CsvValidator() {
     const [isValidatingCsv, setIsValidatingCsv] = useState<boolean>(false);
     const [isLoadingCsv, setIsLoadingCsv] = useState<boolean>(false);
     const [csvFileName, setCsvFileName] = useState<string>("");
-    const [showSuccessOverlay, setShowSuccessOverlay] = useState<boolean>(false); // State for success animation
-    const [showFailureOverlay, setShowFailureOverlay] = useState<boolean>(false); // State for failure animation
+    const [showFailureOverlay, setShowFailureOverlay] = useState<boolean>(false); 
+    const [showSuccessOverlay, setShowSuccessOverlay] = useState<boolean>(false); // Re-add simple overlay state
     const [overallCsvStatus, setOverallCsvStatus] = useState<'valid' | 'invalid' | 'pending' | 'error'>('pending');
     const [openAccordionValue, setOpenAccordionValue] = useState<string | undefined>(undefined); // State to track the open accordion item
 
-    const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden file input
+    const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
+    const jsonInputRef = useRef<HTMLInputElement>(null); // Ref for hidden JSON input
 
     const { toast } = useToast();
     const { theme } = useTheme();
     const workerRef = useRef<Worker | null>(null); // Ref for the worker
     const accumulatedResultsRef = useRef<RowValidationResults[]>([]); // Updated ref type
 
-    // Ref for the scrollable element
-    const parentRef = useRef<HTMLDivElement>(null);
+    const parentRef = useRef<HTMLDivElement>(null); // Ref for the *main* scrollable element
 
     // Derived state for displayed results
     const displayedResults = validationResults.slice(0, visibleResultCount);
 
     // Update Virtualizer configuration
     const rowVirtualizer = useVirtualizer({
-        count: displayedResults.length, // Use displayed results length
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => 50, // Adjust estimate as needed (trigger + content padding)
+        count: displayedResults.length, 
+        // Get the main scrolling element
+        getScrollElement: () => parentRef.current, 
+        estimateSize: () => 50, 
         overscan: 5,
         measureElement: (element) => {
              // Find the AccordionTrigger inside the measured element if needed for better height
@@ -93,22 +97,45 @@ export default function CsvValidator() {
           } else if (type === 'complete') {
             console.log(`Component: Received complete message. Total errors: ${payload.totalErrors}, Total warnings: ${payload.totalWarnings}`);
             const finalResults = accumulatedResultsRef.current;
-            setValidationResults(finalResults); // Set the full results
+
+            // --- Sort results: Errors first, then warnings, then by row number ---
+            finalResults.sort((a, b) => {
+                const aHasErrors = a.errors.length > 0;
+                const bHasErrors = b.errors.length > 0;
+
+                if (aHasErrors && !bHasErrors) {
+                    return -1; // a (error) comes before b (warning only)
+                } else if (!aHasErrors && bHasErrors) {
+                    return 1; // b (error) comes before a (warning only)
+                } else {
+                    // Both have errors OR both only have warnings: sort by row number
+                    return a.row - b.row;
+                }
+            });
+            // --- End Sort ---
+
+            setValidationResults(finalResults);
             setTotalErrorCount(payload.totalErrors);
             setTotalWarningCount(payload.totalWarnings);
-            setVisibleResultCount(Math.min(20, finalResults.length)); // Reset visible count
-            console.log(`Component: Updating state with final ${finalResults.length} row results.`);
-            setOverallCsvStatus(payload.totalErrors === 0 ? 'valid' : 'invalid'); // Base overall status on errors only?
+            setVisibleResultCount(Math.min(20, finalResults.length)); 
+            console.log(`Component: Updating state with final ${finalResults.length} sorted row results.`);
+            setOverallCsvStatus(payload.totalErrors === 0 ? 'valid' : 'invalid'); 
             setIsValidatingCsv(false);
             console.log("Component: Setting isValidatingCsv to false.");
-            if (payload.totalErrors === 0 && payload.totalWarnings === 0) {
-              toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema with no warnings." });
-              setShowSuccessOverlay(true);
-              setTimeout(() => setShowSuccessOverlay(false), 2000);
-            } else if (payload.totalErrors === 0 && payload.totalWarnings > 0) {
-                toast({ variant: "default", title: "Validation Successful (with warnings)", description: `CSV data conforms to the schema, but ${payload.totalWarnings} warning(s) were generated. See results below.` });
-                 // Optional: Show a different overlay or none for success with warnings?
-            } else {
+
+            // Reset overlays first
+            setShowSuccessOverlay(false);
+            setShowFailureOverlay(false);
+
+            // Show SUCCESS overlay if ZERO errors (warnings are ok)
+            if (payload.totalErrors === 0) { 
+              // Adjust toast based on warnings
+              if (payload.totalWarnings === 0) {
+                  toast({ title: "Validation Successful", description: "CSV data conforms to the selected schema." });
+              } else {
+                  toast({ variant: "default", title: "Validation Successful (with warnings)", description: `CSV data conforms to the schema, but ${payload.totalWarnings} warning(s) were generated. See results below.` });
+              }
+            } else { // Only show failure if there are errors
               toast({ variant: "destructive", title: "Validation Failed", description: `Found ${payload.totalErrors} error(s) and ${payload.totalWarnings} warning(s) in the CSV data. See results below.` });
               setShowFailureOverlay(true);
               setTimeout(() => setShowFailureOverlay(false), 2000);
@@ -123,6 +150,7 @@ export default function CsvValidator() {
             setTotalErrorCount(0); // Reset counts on error
             setTotalWarningCount(0);
             setVisibleResultCount(20); // Reset on error too
+            setShowSuccessOverlay(false); // Reset on error
           }
         };
 
@@ -288,14 +316,147 @@ export default function CsvValidator() {
         reader.readAsText(file);
       }, [toast]); // Add toast dependency if used inside
 
-      const handleCsvDownload = () => {
-        console.log("TODO: Implement CSV Download");
-        toast({ title: "Info", description: "CSV Download not implemented yet." });
-      };
+      const handleSaveCsv = () => {
+        if (!csvRawText.trim()) {
+            toast({ variant: "destructive", title: "Error", description: "No CSV data to save." });
+            return;
+        }
+
+        try {
+            // --- Save Logic --- 
+            const blob = new Blob([csvRawText], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            const filename = csvFileName || "edited_data.csv";
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url); 
+            toast({ title: "CSV Saved", description: `Saved data as ${filename}` });
+            
+            // --- Re-parse and Re-validate (Immediately) --- 
+            console.log("Re-parsing and validating after save...");
+            const parseResult = Papa.parse<Record<string, any>>(csvRawText, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: false, 
+            });
+
+            if (parseResult.errors.length > 0) {
+                console.error('CSV Re-Parsing Errors after save:', parseResult.errors);
+                const firstError = parseResult.errors[0];
+                const errorMessage = firstError?.message ?? 'Unknown parsing error';
+                toast({ variant: "destructive", title: "CSV Parse Error", description: `Could not re-validate after save due to parsing errors: ${errorMessage}` });
+                setOverallCsvStatus('error');
+                // Reset overlays here too in case of parse error preventing validation
+                setShowSuccessOverlay(false);
+                setShowFailureOverlay(false);
+            } else {
+                setCsvData(parseResult.data); 
+                // Directly call validation
+                performCsvValidation();
+            }
+
+        } catch (error) {
+             console.error("Error saving or re-parsing CSV:", error);
+             toast({ variant: "destructive", title: "Save/Validation Error", description: "Could not save or re-validate CSV data." });
+        }
+    };
+
+    const handleCsvDownload = () => {
+        // This might now be redundant if handleSaveCsv does what's needed?
+        // Or keep it as a way to download the *original* uploaded data if needed?
+        // For now, let's point it to the save function.
+        handleSaveCsv(); 
+        // Original placeholder: 
+        // console.log("TODO: Implement CSV Download");
+        // toast({ title: "Info", description: "CSV Download not implemented yet." });
+    };
 
       const handleUploadClick = () => {
         fileInputRef.current?.click(); // Trigger click on hidden input
       };
+
+      const handleUploadSchemaClick = () => {
+        jsonInputRef.current?.click(); // Trigger click on hidden JSON input
+      };
+
+      const handleSchemaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          try {
+            const parsedJson = JSON.parse(text);
+            // Basic check if it looks like a schema
+            if (typeof parsedJson !== 'object' || parsedJson === null || !parsedJson.$schema) {
+                throw new Error('Invalid JSON content or missing $schema keyword.');
+            }
+            
+            setUploadedSchemaContent(parsedJson);
+            setUploadedSchemaName(file.name);
+            setSelectedSchemaContent(text); // Update editor view
+            setUseUploadedSchema(true);
+            setValidationResults([]); // Clear previous results
+            setOverallCsvStatus('pending');
+            toast({ title: "Schema Uploaded", description: `Using uploaded schema: ${file.name}` });
+
+          } catch (error: any) {
+            console.error("Failed to parse uploaded JSON schema:", error);
+            toast({ variant: "destructive", title: "Schema Upload Error", description: `Failed to parse JSON file: ${error.message}` });
+            // Reset state if upload fails
+            setUploadedSchemaContent(null);
+            setUploadedSchemaName(null);
+            setUseUploadedSchema(false);
+          }
+        };
+        reader.onerror = (error) => {
+            console.error("Failed to read uploaded file:", error);
+            toast({ variant: "destructive", title: "File Read Error", description: "Could not read the selected file." });
+        };
+        reader.readAsText(file);
+
+        // Reset the file input
+        if (event.target) {
+            event.target.value = '';
+        }
+      };
+
+      const handleClearUploadedSchema = useCallback(async () => {
+        setUploadedSchemaContent(null);
+        setUploadedSchemaName(null);
+        setUseUploadedSchema(false);
+        setValidationResults([]); // Clear results
+        setOverallCsvStatus('pending');
+        
+        // Reset editor to the content of the currently selected dropdown schema
+        if (selectedSchemaName) {
+            setIsLoadingSchemaContent(true); // Show loading indicator briefly
+            try {
+                const response = await fetch(`/api/schemas/${selectedSchemaName}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                setSelectedSchemaContent(data.content);
+                toast({ title: "Schema Cleared", description: `Restored schema: ${selectedSchemaName}` });
+            } catch (error) {
+                console.error("Error re-fetching schema content:", error);
+                toast({ variant: "destructive", title: "Error", description: `Failed to restore schema '${selectedSchemaName}'.` });
+                setSelectedSchemaContent('// Error loading schema.');
+            }
+            setIsLoadingSchemaContent(false);
+        } else {
+            setSelectedSchemaContent('// Select a schema or upload one.'); // Handle case where no dropdown schema was selected
+            toast({ title: "Schema Cleared" });
+        }
+
+    }, [selectedSchemaName, toast]); // Add dependencies
 
       const performCsvValidation = useCallback(async () => {
         // Basic checks before starting worker
@@ -340,31 +501,45 @@ export default function CsvValidator() {
         setTotalErrorCount(0); 
         setTotalWarningCount(0);
         setVisibleResultCount(20); // Reset visible count here too!
-        setShowSuccessOverlay(false);
+        setShowSuccessOverlay(false); 
         setShowFailureOverlay(false);
         console.log("Component: Sending data to worker...");
 
-        let parsedSchema: any;
-        try {
-          // Ensure schema is parsed before sending
-          parsedSchema = typeof selectedSchemaContent === 'string' ? JSON.parse(selectedSchemaContent) : selectedSchemaContent;
-        } catch (err: any) {
-          toast({ variant: "destructive", title: "Schema Error", description: `Failed to parse the selected schema JSON before sending to worker: ${err.message}` });
-          console.error("Schema parsing error:", err);
-          setIsValidatingCsv(false);
-          return;
-        }
+        let schemaToUse: any;
+        let schemaIdentifier: string;
 
+        // Determine which schema content to use
+        if (useUploadedSchema && uploadedSchemaContent) {
+            schemaToUse = uploadedSchemaContent;
+            schemaIdentifier = uploadedSchemaName || 'Uploaded Schema';
+        } else if (selectedSchemaName && selectedSchemaContent) {
+            try {
+                // Ensure schema from dropdown is parsed if it's still a string
+                schemaToUse = typeof selectedSchemaContent === 'string' 
+                    ? JSON.parse(selectedSchemaContent) 
+                    : selectedSchemaContent;
+                schemaIdentifier = selectedSchemaName;
+            } catch (err: any) {
+                toast({ variant: "destructive", title: "Schema Error", description: `Failed to parse the selected schema '${selectedSchemaName}': ${err.message}` });
+                console.error("Schema parsing error:", err);
+                setIsValidatingCsv(false);
+                return;
+            }
+        } else {
+             toast({ variant: "destructive", title: "Error", description: "No schema selected or uploaded." });
+             return;
+        }
+        
         // Send data to worker
         workerRef.current.postMessage({
           type: 'validate',
           payload: {
             csvData: dataToValidate, 
-            parsedSchema: parsedSchema 
+            parsedSchema: schemaToUse 
           }
         });
 
-      }, [selectedSchemaName, selectedSchemaContent, csvData, csvRawText, toast]);
+      }, [selectedSchemaName, selectedSchemaContent, uploadedSchemaContent, uploadedSchemaName, useUploadedSchema, csvData, csvRawText, toast]);
 
       const handleCopySchema = () => {
         navigator.clipboard.writeText(selectedSchemaContent).then(() => {
@@ -387,6 +562,8 @@ export default function CsvValidator() {
         setTotalErrorCount(0);
         setTotalWarningCount(0);
         setVisibleResultCount(20); // Reset on clear
+        setShowSuccessOverlay(false); 
+        setShowFailureOverlay(false);
         toast({ title: "Info", description: "CSV data cleared." });
       }, [toast]);
 
@@ -416,8 +593,8 @@ export default function CsvValidator() {
 
       // --- JSX Structure Update ---
       return (
-        <div className="container mx-auto p-4 md:p-6 flex flex-col min-h-screen gap-6">
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
+        <div className="flex flex-col h-screen bg-gradient-to-br from-[#eef1f5] to-[#dbe3ec] dark:from-zinc-900 dark:to-zinc-800 text-zinc-900 dark:text-zinc-100">
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 pt-4 pb-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
             <div className="flex items-center gap-3">
               <img
                 src="https://cdn.prod.website-files.com/67d2f3ccf11ae5fe6c005b81/67d2f3ccf11ae5fe6c005b8b_logo.svg"
@@ -434,21 +611,17 @@ export default function CsvValidator() {
             </div>
           </header>
 
-          {/* Main Content Area - Removed padding, rely on grid gap */}
-          <main className="flex-grow overflow-hidden">
-            {/* Set height directly on grid container */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(60vh)]"> {/* Use calc if needed, or adjust vh */}
-              {/* Left Panel: Schema Viewer */}
-              <Card className="flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
-                {/* Update Header Div background */}
+          <main ref={parentRef} className="flex-grow overflow-y-auto p-6 flex flex-col gap-6">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-shrink-0">
+              <Card className="flex flex-col min-h-[450px] border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
                 <div className="flex items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
                    <Select
                        value={selectedSchemaName}
                        onValueChange={handleSchemaSelectionChange}
-                       disabled={isLoadingSchemaList || availableSchemaNames.length === 0}
+                       disabled={isLoadingSchemaList || availableSchemaNames.length === 0 || useUploadedSchema}
                    >
                      <SelectTrigger className="w-[220px] bg-white/10 dark:bg-zinc-800/50 border-[#ffffff40] text-white focus:ring-white/50 data-[placeholder]:text-white/70 disabled:opacity-70 disabled:cursor-not-allowed">
-                       <SelectValue placeholder={isLoadingSchemaList ? "Loading schemas..." : "Select Schema"} />
+                       <SelectValue placeholder={isLoadingSchemaList ? "Loading schemas..." : (useUploadedSchema ? uploadedSchemaName : "Select Schema")} />
                      </SelectTrigger>
                      <SelectContent className="dark:bg-zinc-800">
                        {isLoadingSchemaList ? (
@@ -464,14 +637,29 @@ export default function CsvValidator() {
                        )}
                      </SelectContent>
                    </Select>
-                   <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={handleCopySchema} disabled={!selectedSchemaContent} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-white h-8 w-8">
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                   </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Schema</p></TooltipContent> </Tooltip> </TooltipProvider>
+                   <div className="flex items-center space-x-1">
+                      {useUploadedSchema && (
+                          <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={handleClearUploadedSchema} className="hover:bg-destructive/10 text-destructive h-8 w-8">
+                                  <X className="h-4 w-4" />
+                              </Button>
+                          </TooltipTrigger> <TooltipContent side="bottom"><p>Clear Uploaded Schema</p></TooltipContent> </Tooltip> </TooltipProvider>
+                      )}
+
+                      <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={handleUploadSchemaClick} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-white h-8 w-8">
+                              <Upload className="h-4 w-4" />
+                          </Button>
+                      </TooltipTrigger> <TooltipContent side="bottom"><p>Upload Custom Schema (.json)</p></TooltipContent> </Tooltip> </TooltipProvider>
+                      
+                      <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={handleCopySchema} disabled={!selectedSchemaContent} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-white h-8 w-8">
+                              <Copy className="h-4 w-4" />
+                          </Button>
+                      </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Schema</p></TooltipContent> </Tooltip> </TooltipProvider>
+                   </div>
                  </div>
-                {/* Schema Editor Content */}
-                <CardContent className="flex-grow p-0">
+                <CardContent className="flex-grow p-0 min-h-0">
                   {isLoadingSchemaContent ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading schema...</div>
                   ) : (
@@ -486,58 +674,62 @@ export default function CsvValidator() {
                 </CardContent>
               </Card>
 
-              {/* Right Panel: CSV Data */} 
-              <Card className="relative flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
-                 {/* Right Panel Header */} 
+              <Card className="relative flex flex-col min-h-[450px] border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg">
                  <CardHeader className="flex-row justify-between items-center bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-700">
                    <div className="flex items-center space-x-2">
                      <FileText className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                      <CardTitle className="text-lg font-semibold text-[#1e007d] dark:text-zinc-100">CSV Data</CardTitle>
                    </div>
-                   {/* --- Header Actions --- */}
                    <div className="flex items-center space-x-1">
-                      {/* Upload */}
                       <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={handleUploadClick} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8" disabled={isLoadingCsv || isLoadingSchemaList || isLoadingSchemaContent || isValidatingCsv}>
                            {isLoadingCsv ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                         </Button>
                       </TooltipTrigger> <TooltipContent side="bottom"><p>Upload CSV File</p></TooltipContent> </Tooltip> </TooltipProvider>
 
-                      {/* Download */} 
                       <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleCsvDownload} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8" disabled={!csvRawText}> {/* Disable if no raw text */}
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handleSaveCsv} 
+                            className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
+                            disabled={!csvRawText.trim()} // Disable if no text
+                        >
+                            <Save className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger> <TooltipContent side="bottom"><p>Save Edited CSV</p></TooltipContent> </Tooltip> </TooltipProvider>
+
+                      <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={handleCsvDownload} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8" disabled={!csvRawText}>
                            <Download className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger> <TooltipContent side="bottom"><p>Download CSV</p></TooltipContent> </Tooltip> </TooltipProvider>
                    </div>
                  </CardHeader>
 
-                {/* CSV Editor Content - Add container for overlay */} 
-                <CardContent className="flex-grow p-0 relative"> {/* Add relative */}
+                <CardContent className="flex-grow p-0 relative min-h-0">
                   <CodeEditor
                     value={csvRawText}
-                    language="plaintext"
-                    readOnly={false} // Allow editing
+                    language="csv"
+                    readOnly={false}
+                    height="100%"
                     onChange={setCsvRawText}
-                    height="100%" // Keep height
                   />
-                  {/* Success Overlay */} 
+                  
                   {showSuccessOverlay && (
                     <div className="absolute inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center z-10 transition-opacity duration-300 animate-fade-in">
-                      <CheckCircle className="h-24 w-24 text-green-600" />
+                        <CheckCircle className="h-24 w-24 text-green-600" />
                     </div>
                   )}
-                  {/* Failure Overlay */} 
+
                   {showFailureOverlay && (
-                    <div className="absolute inset-0 bg-red-500/20 backdrop-blur-sm flex items-center justify-center z-10 transition-opacity duration-300 animate-fade-in">
-                      <XCircle className="h-24 w-24 text-red-600" />
-                    </div>
+                      <div className="absolute inset-0 bg-red-500/20 backdrop-blur-sm flex items-center justify-center z-10 transition-opacity duration-300 animate-fade-in">
+                          <XCircle className="h-24 w-24 text-red-600" />
+                      </div>
                   )}
                 </CardContent>
 
-                {/* Footer - Add Clear button */} 
                 <CardFooter className="flex justify-end items-center p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
-                   {/* Left side: File name and clear button */}
                    <div className="flex items-center space-x-1 flex-grow mr-4 truncate">
                      <span className="text-sm text-muted-foreground truncate">
                         {csvFileName || 'No file uploaded'}
@@ -578,135 +770,132 @@ export default function CsvValidator() {
                 </CardFooter>
               </Card>
             </section>
+
+            <section className="flex flex-col">
+               <Card className="border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden flex flex-col">
+                   <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                       <div className="flex items-center space-x-2">
+                           {getStatusIcon(overallCsvStatus)}
+                           <CardTitle className="text-lg font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
+                           {(totalErrorCount > 0 || totalWarningCount > 0) && (
+                               <span className="text-sm text-muted-foreground">
+                                   ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
+                                   {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
+                                   {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
+                               </span>
+                           )}
+                       </div>
+                       <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
+                           <Copy className="h-4 w-4" />
+                         </Button>
+                       </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
+                   </CardHeader>
+                   <CardContent className="p-0">
+                       <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                           {displayedResults.length === 0 && !isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground">
+                                   {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : 'No issues found.'} 
+                               </div>
+                           )}
+                           {isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
+                           )}
+                           {displayedResults.length > 0 && (
+                               rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                   const result = displayedResults[virtualRow.index]; 
+                                   const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
+                                   return (
+                                       <div 
+                                            key={result.row} 
+                                            data-index={virtualRow.index}
+                                            ref={rowVirtualizer.measureElement} 
+                                            style={{ 
+                                                position: 'absolute', 
+                                                top: 0, 
+                                                left: 0, 
+                                                width: '100%', 
+                                                transform: `translateY(${virtualRow.start}px)`,
+                                                padding: '0'
+                                            }}
+                                        >
+                                           <Accordion 
+                                              type="single"
+                                              collapsible
+                                              className="w-full border-b border-muted/20 px-4"
+                                              value={openAccordionValue} 
+                                              onValueChange={setOpenAccordionValue}
+                                            >
+                                              <AccordionItem
+                                                  value={`item-${result.row}`}
+                                                  className="border-b-0"
+                                               > 
+                                                  <AccordionTrigger className={`text-sm text-left hover:no-underline py-2 group ${rowSeverity === 'error' ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300' : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'}`}>
+                                                  <div className="flex items-center space-x-2 flex-grow truncate">
+                                                      {rowSeverity === 'error' ? 
+                                                         <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> : 
+                                                         <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+                                                      <span className="font-semibold">Row {result.row}:</span>
+                                                      <span className="truncate flex-grow text-muted-foreground">
+                                                          {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
+                                                          {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
+                                                      </span>
+                                                  </div>
+                                                   <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
+                                                  </AccordionTrigger>
+                                                  <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
+                                                       {result.errors.map((err, index) => (
+                                                          <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
+                                                             <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
+                                                             <div>
+                                                                 <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
+                                                             </div>
+                                                          </div>
+                                                      ))}
+                                                       {result.warnings.map((warn, index) => (
+                                                          <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
+                                                             <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
+                                                             <div>
+                                                                  <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
+                                                             </div>
+                                                          </div>
+                                                      ))}
+                                                  </AccordionContent>
+                                              </AccordionItem>
+                                           </Accordion>
+                                       </div>
+                                   );
+                               })
+                           )}
+                       </div>
+                   </CardContent>
+                   {validationResults.length > visibleResultCount && (
+                       <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+                           <Button 
+                               variant="secondary" 
+                               onClick={handleShowMoreResults}
+                               disabled={isValidatingCsv}
+                           >
+                               Show More Results ({displayedResults.length} / {validationResults.length})
+                           </Button>
+                       </CardFooter>
+                   )}
+               </Card>
+            </section>
           </main>
 
-          {/* Results Section - Adjusted for Height and Clarity */}
-          <section className="px-0 pb-4">
-            <Card className="h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
-                <div className="flex items-center space-x-2">
-                    {/* Dynamically update icon based on overall status? */}
-                    {getStatusIcon(overallCsvStatus)}
-                    <CardTitle className="text-lg font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
-                    {/* Show counts */} 
-                    {(totalErrorCount > 0 || totalWarningCount > 0) && (
-                        <span className="text-sm text-muted-foreground">
-                            ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
-                            {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
-                            {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
-                        </span>
-                    )}
-                </div>
-                {/* Copy Button */} 
-                <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
-              </CardHeader>
-              <CardContent className="p-0 flex-grow overflow-hidden">
-                 <ScrollArea ref={parentRef} className="h-full">
-                   {/* Virtualized List */} 
-                   <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                     {displayedResults.length === 0 && !isValidatingCsv && (
-                        <div className="flex items-center justify-center h-full text-muted-foreground">
-                            {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : (validationResults.length > 0 ? '' : 'No issues found.') /* Adjust placeholder */}
-                        </div>
-                     )}
-                     {isValidatingCsv && (
-                         <div className="flex items-center justify-center h-full text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
-                     )}
-                     {displayedResults.length > 0 && (
-                       rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                         const result = displayedResults[virtualRow.index]; 
-                         const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
-
-                         return (
-                           <div
-                             key={result.row}
-                             data-index={virtualRow.index}
-                             ref={rowVirtualizer.measureElement}
-                             style={{
-                               position: 'absolute',
-                               top: 0,
-                               left: 0,
-                               width: '100%',
-                               transform: `translateY(${virtualRow.start}px)`,
-                               padding: '0' // Apply padding within Accordion
-                             }}
-                           >
-                             <Accordion 
-                                type="single"
-                                collapsible
-                                className="w-full border-b border-muted/20 px-4"
-                                value={openAccordionValue} 
-                                onValueChange={setOpenAccordionValue}
-                              >
-                                <AccordionItem
-                                    value={`item-${result.row}`}
-                                    className="border-b-0"
-                                 > 
-                                    <AccordionTrigger className={`text-sm text-left hover:no-underline py-2 group ${rowSeverity === 'error' ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300' : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'}`}>
-                                    <div className="flex items-center space-x-2 flex-grow truncate">
-                                        {rowSeverity === 'error' ? 
-                                           <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> : 
-                                           <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-                                        <span className="font-semibold">Row {result.row}:</span>
-                                        <span className="truncate flex-grow text-muted-foreground">
-                                            {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
-                                            {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
-                                        </span>
-                                    </div>
-                                     <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
-                                    </AccordionTrigger>
-                                    <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
-                                         {result.errors.map((err, index) => (
-                                            <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
-                                                 <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
-                                                 <div>
-                                                     <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
-                                                 </div>
-                                            </div>
-                                        ))}
-                                         {result.warnings.map((warn, index) => (
-                                            <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
-                                                 <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" /> 
-                                                 <div>
-                                                      <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
-                                                 </div>
-                                            </div>
-                                        ))}
-                                    </AccordionContent>
-                                </AccordionItem>
-                             </Accordion>
-                           </div>
-                         );
-                       })
-                     )}
-                   </div>
-                 </ScrollArea>
-              </CardContent>
-                {/* Footer for Load More button */} 
-                 {validationResults.length > visibleResultCount && (
-                    <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
-                        <Button 
-                            variant="secondary" 
-                            onClick={handleShowMoreResults}
-                            disabled={isValidatingCsv}
-                        >
-                            Show More Results ({displayedResults.length} / {validationResults.length})
-                        </Button>
-                    </CardFooter>
-                )}
-            </Card>
-          </section>
-
-          {/* Hidden File Input */}
            <input
              type="file"
              ref={fileInputRef}
              onChange={handleCsvUpload}
              accept=".csv, text/csv"
+             style={{ display: 'none' }}
+           />
+           <input 
+             type="file"
+             ref={jsonInputRef} 
+             onChange={handleSchemaUpload}
+             accept=".json, application/json"
              style={{ display: 'none' }}
            />
 
