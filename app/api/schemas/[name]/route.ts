@@ -4,12 +4,16 @@ import path from 'path';
 
 export async function GET(
   request: Request,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
-  console.log("[API /api/schemas/[name]] Incoming params:", params);
+  console.log("[API /api/schemas/[name]] Waiting for params...");
 
-  // Extract name directly
-  const { name } = params;
+  // Await the params promise
+  const awaitedParams = await params;
+  console.log("[API /api/schemas/[name]] Incoming params resolved:", awaitedParams);
+
+  // Extract name from awaited params
+  const { name } = awaitedParams;
 
   // Optional: Basic safety check on the name string
   if (!name || !name.endsWith('.json') || name.includes('/') || name.includes('\\')) {
@@ -19,7 +23,7 @@ export async function GET(
 
   try {
     // Using path.join for potentially better relative path handling
-    const schemasDir = path.join(process.cwd(), '..', 'schemas', 'v1');
+    const schemasDir = path.join(process.cwd(), 'schemas', 'v1');
     const filePath = path.join(schemasDir, name);
 
     console.log(`[API /api/schemas/${name}] Reading file: ${filePath}`);

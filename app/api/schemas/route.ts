@@ -7,7 +7,7 @@ export async function GET() {
     // Construct the absolute path relative to the current file's directory
     // Adjust __dirname depending on deployment environment if necessary, but this works for local dev
     // Using path.join for potentially better relative path handling
-    const schemasDir = path.join(process.cwd(), '..', 'schemas', 'v1'); // Using path.join
+    const schemasDir = path.join(process.cwd(), 'schemas', 'v1'); // Corrected path relative to root
 
     console.log(`[API /api/schemas] Reading directory: ${schemasDir}`); // Log the path being read
 
