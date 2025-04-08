@@ -62,7 +62,7 @@ A web-based tool to validate CSV data against JSON schemas directly in your brow
 *   Alternatively, click the upload area to open a file selection dialog.
 *   The raw CSV content will be displayed in the editor pane.
 
-    *(Optional: Insert snapshot of CSV upload area here)*
+    ![Alt text](img/image.png "CSV Content")
 
 ### 2. Select or Upload Schema
 
@@ -72,7 +72,7 @@ A web-based tool to validate CSV data against JSON schemas directly in your brow
     *   Select your JSON schema file (`.json`).
     *   The application will use your uploaded schema for validation.
 
-    *(Optional: Insert snapshot of schema selection/upload here)*
+    ![Alt text](img/image2.png "JSON Schema") 
 
 ### 3. Validate Data
 
@@ -91,14 +91,14 @@ A web-based tool to validate CSV data against JSON schemas directly in your brow
     *   Schema Path (`instancePath`) indicating the location of the issue within the data structure.
 *   Counts for total errors and warnings are displayed.
 
-    *(Optional: Insert snapshot of validation results section here)*
+    ![Alt text](img/image3.png "Results section")
 
 ### 5. Edit CSV Data
 
 *   You can directly edit the text in the CSV editor pane on the left.
 *   Make corrections based on the validation results or perform other modifications.
 
-    *(Optional: Insert snapshot of the CSV editor here)*
+    ![Alt text](img/image4.png "Optional title") 
 
 ### 6. Save Modified CSV
 
@@ -122,16 +122,54 @@ A web-based tool to validate CSV data against JSON schemas directly in your brow
 *   **State Management:** React Hooks (useState, useCallback, useRef)
 *   **Asynchronous Operations:** Web Workers
 
+
+
+---
+
+<div align="center">
+  ✔️ Made with ❤️ by the fine people @ [F]it 👌
+</div>
+
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are welcome! If you find a bug or have a feature request, please open an issue on GitHub.
 
-*(Optional: Add contribution guidelines here if desired)*
+If you'd like to contribute code:
+
+1.  Fork the repository.
+2.  Create a new branch for your feature or bug fix (`git checkout -b feature/your-feature` or `git checkout -b fix/your-bug`).
+3.  Make your changes and commit them with clear messages.
+4.  Push your branch to your fork (`git push origin feature/your-feature`).
+5.  Open a Pull Request back to the main repository's `develop` branch.
+
+Please ensure your code adheres to the existing style and that any relevant tests pass (if applicable).
 
 ---
 
 ## 📄 License
 
-*(Optional: Add license information here, e.g., MIT)* 
+This project is licensed under the MIT License.
+
+**MIT License**
+
+Copyright (c) 2025 Fabien Dostie, [F]it
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
