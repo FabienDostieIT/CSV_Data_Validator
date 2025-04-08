@@ -2,10 +2,10 @@
  * Tests for the validation API endpoint
  */
 import { createMocks } from 'node-mocks-http';
-import handler from './validate';
+import handler from '../../pages/api/validate';
 
 // Mock the schema validator
-jest.mock('../../validator/validator', () => {
+jest.mock('../../../validator/validator', () => {
   return jest.fn().mockImplementation(() => {
     return {
       validate: jest.fn(),
@@ -42,7 +42,7 @@ describe('/api/validate endpoint', () => {
 
   it('handles successful validation', async () => {
     // Mock a successful validation result
-    const SchemaValidator = require('../../validator/validator');
+    const SchemaValidator = require('../../../validator/validator');
     const mockValidator = new SchemaValidator();
     mockValidator.validate.mockReturnValue({
       valid: true,
@@ -60,7 +60,7 @@ describe('/api/validate endpoint', () => {
 
   it('handles validation errors', async () => {
     // Mock a validation with errors
-    const SchemaValidator = require('../../validator/validator');
+    const SchemaValidator = require('../../../validator/validator');
     const mockValidator = new SchemaValidator();
     mockValidator.validate.mockReturnValue({
       valid: false,
@@ -136,7 +136,7 @@ describe('/api/validate endpoint', () => {
 
   it('handles internal server errors', async () => {
     // Force an error in the validator
-    const SchemaValidator = require('../../validator/validator');
+    const SchemaValidator = require('../../../validator/validator');
     const mockValidator = new SchemaValidator();
     mockValidator.validate.mockImplementation(() => {
       throw new Error('Test error');
