@@ -49,5 +49,10 @@
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-json-patch": "^3.1.1"
+    }
   }
 }
