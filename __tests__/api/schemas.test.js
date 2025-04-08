@@ -2,10 +2,10 @@
  * Tests for the schemas API endpoint
  */
 import { createMocks } from 'node-mocks-http';
-import handler from './schemas';
+import handler from '../../pages/api/schemas';
 
 // Mock the schema validator
-jest.mock('../../validator/validator', () => {
+jest.mock('../../../validator/validator', () => {
   return jest.fn().mockImplementation(() => {
     return {
       getAvailableVersions: jest.fn().mockReturnValue(['v1']),
@@ -62,7 +62,7 @@ describe('/api/schemas endpoint', () => {
   
   it('handles errors during schema discovery', async () => {
     // Mock implementation to throw an error
-    const SchemaValidator = require('../../validator/validator');
+    const SchemaValidator = require('../../../validator/validator');
     const mockValidator = new SchemaValidator();
     mockValidator.getAvailableVersions.mockImplementation(() => {
       throw new Error('Test error');
@@ -81,7 +81,7 @@ describe('/api/schemas endpoint', () => {
   
   it('returns empty arrays for no schemas', async () => {
     // Mock implementation to return empty arrays
-    const SchemaValidator = require('../../validator/validator');
+    const SchemaValidator = require('../../../validator/validator');
     const mockValidator = new SchemaValidator();
     mockValidator.getAvailableVersions.mockReturnValue([]);
     
