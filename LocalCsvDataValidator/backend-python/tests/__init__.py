@@ -1,1 +1,0 @@
-"""Test suite for schema documentation generation.""" 
