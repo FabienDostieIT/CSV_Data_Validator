@@ -19,6 +19,7 @@ interface CodeEditorProps {
   className?: string
   readOnly?: boolean
   errorDecorations?: EditorErrorDecoration[] // Changed from errorLines: number[]
+  highlightedLine?: number // New prop for line highlighting
 }
 
 export default function CodeEditor({
@@ -29,6 +30,7 @@ export default function CodeEditor({
   className,
   readOnly = false,
   errorDecorations = [], // Changed from errorLines
+  highlightedLine,
 }: CodeEditorProps) {
   const { theme } = useTheme()
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -109,6 +111,26 @@ export default function CodeEditor({
     applyErrorDecorations(errorDecorations)
   }, [errorDecorations]) // Changed dependency
 
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+    // Remove previous highlight
+    editorRef.current.deltaDecorations(
+      editorRef.current.getModel()?.getAllDecorations().filter(d => d.options.className === 'editor-highlight-line').map(d => d.id) || [],
+      []
+    );
+    if (highlightedLine) {
+      editorRef.current.deltaDecorations([], [
+        {
+          range: new monacoRef.current.Range(highlightedLine, 1, highlightedLine, 1),
+          options: {
+            isWholeLine: true,
+            className: 'editor-highlight-line',
+          }
+        }
+      ]);
+    }
+  }, [highlightedLine]);
+
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs'
 
   return (
@@ -142,6 +164,11 @@ export default function CodeEditor({
           padding: 4px 8px;
           border-radius: 3px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        /* Style for highlighted line */
+        .editor-highlight-line {
+          background-color: rgba(56, 189, 248, 0.25) !important;
+          border-left: 3px solid #38bdf8 !important;
         }
       `}</style>
       <Editor
