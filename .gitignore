@@ -116,3 +116,5 @@ dist/
 
 # Local Development/Testing Folders
 LocalCsvDataValidator/ 
+
+csv

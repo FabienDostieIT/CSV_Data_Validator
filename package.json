@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "node scripts/copy-templates.mjs",
     "validate-schema:2020": "ajv validate -s",
     "validate-schema:2019": "ajv validate -s",
     "validate-schema:7": "ajv validate -s"
@@ -16,6 +17,7 @@
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-scroll-area": "^1.2.4",
     "@radix-ui/react-select": "^2.1.6",
     "@radix-ui/react-separator": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.2",
@@ -31,9 +33,13 @@
     "lucide-react": "^0.487.0",
     "monaco-editor": "^0.52.2",
     "next": "^15.2.4",
+    "node-fetch": "^3.3.2",
     "papaparse": "^5.5.2",
     "react": "^19.0.0-rc.0",
     "react-dom": "^19.0.0-rc.0",
+    "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.2.0"
   },
   "devDependencies": {
@@ -45,6 +51,8 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9.24.0",
     "eslint-config-next": "^15.2.4",
+    "fs-extra": "^11.3.0",
+    "json-schema-static-docs": "^0.28.1",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",

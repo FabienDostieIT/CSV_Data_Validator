@@ -19,6 +19,8 @@ interface CodeEditorProps {
   className?: string
   readOnly?: boolean
   errorDecorations?: EditorErrorDecoration[] // Changed from errorLines: number[]
+  highlightedLine?: number // New prop for line highlighting
+  scrollToLine?: number // New prop for auto-scroll
 }
 
 export default function CodeEditor({
@@ -29,6 +31,8 @@ export default function CodeEditor({
   className,
   readOnly = false,
   errorDecorations = [], // Changed from errorLines
+  highlightedLine,
+  scrollToLine,
 }: CodeEditorProps) {
   const { theme } = useTheme()
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -109,6 +113,33 @@ export default function CodeEditor({
     applyErrorDecorations(errorDecorations)
   }, [errorDecorations]) // Changed dependency
 
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+    // Remove previous highlight
+    editorRef.current.deltaDecorations(
+      editorRef.current.getModel()?.getAllDecorations().filter(d => d.options.className === 'editor-highlight-line').map(d => d.id) || [],
+      []
+    );
+    if (highlightedLine) {
+      editorRef.current.deltaDecorations([], [
+        {
+          range: new monacoRef.current.Range(highlightedLine, 1, highlightedLine, 1),
+          options: {
+            isWholeLine: true,
+            className: 'editor-highlight-line',
+          }
+        }
+      ]);
+    }
+  }, [highlightedLine]);
+
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+    if (scrollToLine) {
+      editorRef.current.revealLineInCenter(scrollToLine);
+    }
+  }, [scrollToLine]);
+
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs'
 
   return (
@@ -143,6 +174,7 @@ export default function CodeEditor({
           border-radius: 3px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
+        /* Removed global style for highlighted line */
       `}</style>
       <Editor
         height={height}
