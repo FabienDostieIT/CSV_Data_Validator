@@ -20,6 +20,7 @@ interface CodeEditorProps {
   readOnly?: boolean
   errorDecorations?: EditorErrorDecoration[] // Changed from errorLines: number[]
   highlightedLine?: number // New prop for line highlighting
+  scrollToLine?: number // New prop for auto-scroll
 }
 
 export default function CodeEditor({
@@ -31,6 +32,7 @@ export default function CodeEditor({
   readOnly = false,
   errorDecorations = [], // Changed from errorLines
   highlightedLine,
+  scrollToLine,
 }: CodeEditorProps) {
   const { theme } = useTheme()
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -130,6 +132,13 @@ export default function CodeEditor({
       ]);
     }
   }, [highlightedLine]);
+
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+    if (scrollToLine) {
+      editorRef.current.revealLineInCenter(scrollToLine);
+    }
+  }, [scrollToLine]);
 
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs'
 

@@ -20,6 +20,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { cn } from "@/lib/utils";
 
 // --- Custom Markdown Components for Styling ---
 const CustomH1 = ({ node, ...props }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 border-b pb-1" {...props} />;
@@ -90,6 +91,15 @@ interface RowValidationResults {
     warnings: ValidationIssue[];
 }
 
+// Debounce utility
+function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
+  let timer: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 export default function CsvValidator() {
     // --- State Variables --- // Uncomment most
     const [availableSchemaNames, setAvailableSchemaNames] = useState<string[]>([]); // List of schema filenames
@@ -117,6 +127,7 @@ export default function CsvValidator() {
     const [schemaMarkdown, setSchemaMarkdown] = useState<string>(''); // State for generated Markdown
     const [isFetchingMarkdown, setIsFetchingMarkdown] = useState<boolean>(false); // State for markdown fetch loading
     const [highlightedCsvLine, setHighlightedCsvLine] = useState<number | undefined>(undefined);
+    const [scrollToLine, setScrollToLine] = useState<number | undefined>(undefined);
 
     // Uncomment Refs
     const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
@@ -136,11 +147,17 @@ export default function CsvValidator() {
         getScrollElement: () => parentRef.current, 
         estimateSize: () => 50, 
         overscan: 5,
-        measureElement: (element) => {
-             const trigger = element.querySelector('[data-state="closed"], [data-state="open"]'); 
-             return trigger?.getBoundingClientRect().height || element.getBoundingClientRect().height;
-         }
+        // measureElement: (element) => {
+        //      const trigger = element.querySelector('[data-state="closed"], [data-state="open"]'); 
+        //      return trigger?.getBoundingClientRect().height || element.getBoundingClientRect().height;
+        // }
     });
+
+    useEffect(() => {
+      if (validationResults.length > 0 && visibleResultCount < 20) {
+        setVisibleResultCount(Math.min(20, validationResults.length));
+      }
+    }, [validationResults]);
 
     // --- Function to Fetch and Render Schema Docs --- // Moved definition *before* useEffect that needs it
     const fetchAndRenderSchemaDoc = useCallback(async (schemaOverride?: any) => {
@@ -224,14 +241,12 @@ export default function CsvValidator() {
     useEffect(() => {
       if (!selectedSchemaName && !useUploadedSchema) { // Adjusted condition
           setSelectedSchemaContent('');
-          setValidationResults([]);
           setSchemaMarkdown(''); // Clear markdown when schema is unselected/cleared
           return;
       }
 
       const fetchSchemaContent = async () => {
         setIsLoadingSchemaContent(true);
-        setValidationResults([]);
         // Don't clear markdown here, let fetchAndRender handle it
         // setSchemaMarkdown(''); 
         try {
@@ -290,21 +305,10 @@ export default function CsvValidator() {
           setUseUploadedSchema(true);
           setSelectedSchemaName(uploadedSchemaName || 'uploaded-schema'); // Keep track
           // Directly use uploaded content (handled in useEffect now)
-          setOpenAccordionValue(undefined); // Close results when schema changes
-          setValidationResults([]);
-          setTotalErrorCount(0);
-          setTotalWarningCount(0);
-          setOverallCsvStatus('pending');
-
       } else if (schemaName && schemaName !== 'uploaded-schema') {
           setUseUploadedSchema(false);
           setSelectedSchemaName(schemaName);
           // Fetching handled by useEffect
-          setOpenAccordionValue(undefined); // Close results when schema changes
-          setValidationResults([]);
-          setTotalErrorCount(0);
-          setTotalWarningCount(0);
-          setOverallCsvStatus('pending');
       }
     };
 
@@ -316,7 +320,6 @@ export default function CsvValidator() {
 
       setIsLoadingCsv(true);
       setCsvFileName(file.name);
-      setValidationResults([]); // Clear previous results
       setOverallCsvStatus('pending'); // Reset status
       toast({ title: "Parsing CSV", description: `Processing ${file.name}...` });
 
@@ -328,7 +331,7 @@ export default function CsvValidator() {
         Papa.parse<Record<string, any>>(text, {
           header: true,
           skipEmptyLines: true,
-          dynamicTyping: false, // Ensure values are parsed as strings initially
+          dynamicTyping: true, // changed from false
           complete: (results) => {
             // Check for Papa Parse errors specifically
             if (results.errors.length > 0) {
@@ -410,7 +413,7 @@ export default function CsvValidator() {
           const parseResult = Papa.parse<Record<string, any>>(csvRawText, {
               header: true,
               skipEmptyLines: true,
-              dynamicTyping: false, 
+              dynamicTyping: true, // changed from false
           });
 
           if (parseResult.errors.length > 0) {
@@ -425,7 +428,7 @@ export default function CsvValidator() {
           } else {
               setCsvData(parseResult.data); 
               // Directly call validation
-              performCsvValidation();
+              performCsvValidation(parseResult.data);
           }
 
       } catch (error) {
@@ -472,7 +475,6 @@ export default function CsvValidator() {
           setUploadedSchemaName(file.name);
           setSelectedSchemaContent(text); // Update editor view
           setUseUploadedSchema(true);
-          setValidationResults([]); // Clear previous results
           setOverallCsvStatus('pending');
           toast({ title: "Schema Uploaded", description: `Using uploaded schema: ${file.name}` });
 
@@ -501,8 +503,6 @@ export default function CsvValidator() {
       setUploadedSchemaContent(null);
       setUploadedSchemaName(null);
       setUseUploadedSchema(false);
-      setValidationResults([]); // Clear results
-      setOverallCsvStatus('pending');
       
       // Reset editor to the content of the currently selected dropdown schema
       if (selectedSchemaName) {
@@ -526,10 +526,9 @@ export default function CsvValidator() {
 
   }, [selectedSchemaName, toast]); // Add dependencies
 
-    const performCsvValidation = useCallback(async () => {
+    const performCsvValidation = useCallback(async (dataOverride?: Record<string, any>[]) => {
       setIsValidatingCsv(true);
       setOverallCsvStatus('pending');
-      setValidationResults([]);
       setTotalErrorCount(0);
       setTotalWarningCount(0);
       setVisibleResultCount(20);
@@ -555,7 +554,8 @@ export default function CsvValidator() {
         return;
       }
 
-      if (!csvData || csvData.length === 0) {
+      const dataToValidate = dataOverride ?? csvData;
+      if (!dataToValidate || dataToValidate.length === 0) {
         setIsValidatingCsv(false);
         setOverallCsvStatus('pending');
         return;
@@ -568,41 +568,50 @@ export default function CsvValidator() {
       try {
         validate = ajv.compile(schemaToUse);
       } catch (e) {
-        toast({ title: "Schema Compile Error", description: e.message, variant: "destructive" });
+        toast({ title: "Schema Compile Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
         setIsValidatingCsv(false);
         setOverallCsvStatus('error');
         return;
       }
 
-      let results = [];
+      let results: RowValidationResults[] = [];
       let totalErrors = 0;
       let totalWarnings = 0;
 
-      for (let i = 0; i < csvData.length; i++) {
-        const row = csvData[i];
+      for (let i = 0; i < dataToValidate.length; i++) {
+        const row = dataToValidate[i];
         let valid = true;
-        let errors = [];
-        let warnings = [];
+        let errors: ValidationIssue[] = [];
+        let warnings: ValidationIssue[] = [];
         try {
           valid = validate(row);
         } catch (e) {
           valid = false;
-          errors.push({ property: 'Row', message: e.message });
+          errors.push({ property: 'Row', message: (e instanceof Error ? e.message : String(e)) });
         }
         if (!valid && validate.errors) {
           validate.errors.forEach(err => {
-            // Example: treat 'required' and 'type' as errors, 'additionalProperties' as warning
+            const property = err.instancePath ? err.instancePath.replace(/^\//, '') : 'Row';
+            let value = property && row && row[property] !== undefined ? row[property] : undefined;
+            let message = err.message || 'Validation error';
+            if (err.keyword === 'enum' && err.params?.allowedValues) {
+              message = `Value '${value}' is not valid for '${property}'. Allowed values: [${err.params.allowedValues.join(', ')}]`;
+            } else if (err.keyword === 'type' && err.params?.type) {
+              message = `Value '${value}' for '${property}' is not of type '${err.params.type}'.`;
+            } else if (err.keyword === 'required' && err.params?.missingProperty) {
+              message = `Missing required property '${err.params.missingProperty}'.`;
+            } else if (err.keyword === 'pattern' && err.params?.pattern) {
+              message = `Value '${value}' for '${property}' does not match required pattern: ${err.params.pattern}`;
+            } else if (err.keyword === 'additionalProperties' && err.params?.additionalProperty) {
+              message = `Unexpected property '${err.params.additionalProperty}' found.`;
+            } else if (value !== undefined) {
+              message = `${message} (Value: '${value}')`;
+            }
             if (err.keyword === 'additionalProperties') {
-              warnings.push({
-                property: err.instancePath ? err.instancePath.replace(/^\//, '') : 'Row',
-                message: err.message || 'Validation warning'
-              });
+              warnings.push({ property, message });
               totalWarnings++;
             } else {
-              errors.push({
-                property: err.instancePath ? err.instancePath.replace(/^\//, '') : 'Row',
-                message: err.message || 'Validation error'
-              });
+              errors.push({ property, message });
               totalErrors++;
             }
           });
@@ -638,7 +647,6 @@ export default function CsvValidator() {
       setCsvRawText('');
       setCsvData([]);
       setCsvFileName('');
-      setValidationResults([]); // Clear results as well
       setOverallCsvStatus('pending'); // Reset status
       // Reset the file input so the same file can be re-uploaded if needed
       if (fileInputRef.current) {
@@ -686,17 +694,63 @@ export default function CsvValidator() {
         }
     };
 
-    // --- JSX Structure Update --- // Uncomment complex JSX
+    useEffect(() => {
+      if (validationResults.length > 0 && visibleResultCount < 20) {
+        setVisibleResultCount(Math.max(10, Math.min(20, validationResults.length)));
+      }
+    }, [validationResults]);
+
+    // Live validation effect
+    useEffect(() => {
+      if (!csvRawText.trim()) {
+        setCsvData([]);
+        setOverallCsvStatus('pending');
+        setTotalErrorCount(0);
+        setTotalWarningCount(0);
+        setVisibleResultCount(20);
+        return;
+      }
+      // Debounced parse and validate
+      const debounced = debounce(() => {
+        const parseResult = Papa.parse<Record<string, any>>(csvRawText, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true, // changed from false
+        });
+        if (parseResult.errors.length > 0) {
+          setCsvData([]);
+          setValidationResults([
+            {
+              row: (parseResult.errors[0]?.row ?? -1) + 1,
+              errors: [{ property: `CSV Header/Parse Error (Row ${(parseResult.errors[0]?.row ?? -1) + 1})`, message: parseResult.errors[0]?.message ?? 'Unknown parsing error' }],
+              warnings: [],
+            },
+          ]);
+          setOverallCsvStatus('invalid');
+          setTotalErrorCount(1);
+          setTotalWarningCount(0);
+          setVisibleResultCount(1);
+        } else {
+          setCsvData(parseResult.data);
+          performCsvValidation(parseResult.data); // Always validate the latest parsed data
+        }
+      }, 400); // 400ms debounce
+      debounced();
+      // Cleanup
+      return () => { clearTimeout((debounced as any).timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [csvRawText, selectedSchemaContent, uploadedSchemaContent, useUploadedSchema]);
+
     return (
-      <div className="flex flex-col h-screen bg-gradient-to-br from-[#eef1f5] to-[#dbe3ec] dark:from-zinc-900 dark:to-zinc-800 text-zinc-900 dark:text-zinc-100">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 pt-4 pb-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
-           <div className="flex items-center gap-3">
+      <div className="flex flex-col h-screen w-full">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
+           <div className="flex items-center gap-2">
              <img
-               src="https://cdn.prod.website-files.com/67d2f3ccf11ae5fe6c005b81/67d2f3ccf11ae5fe6c005b8b_logo.svg"
+               src="/lavitrine_logo.svg"
                alt="Company Logo"
-               className="h-16 w-auto dark:filter dark:invert dark:brightness-0 dark:saturate-100"
+               className="h-16 w-auto transition-all duration-300 dark:filter dark:invert dark:brightness-0 dark:contrast-100"
              />
-             <span className="text-2xl text-muted-foreground/50">|</span>
+             <span className="text-sm font-medium text-muted-foreground">|</span>
              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
                CSV Data Validator
              </h1>
@@ -769,7 +823,7 @@ export default function CsvValidator() {
            <div className="flex-grow"></div>
 
             <Button
-               onClick={performCsvValidation}
+               onClick={() => performCsvValidation()}
                disabled={isValidatingCsv || !csvRawText.trim() || (!selectedSchemaName && !useUploadedSchema)}
                size="sm"
                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
@@ -783,226 +837,453 @@ export default function CsvValidator() {
 
         </section>
 
-        <main className="flex-grow overflow-auto p-6 flex flex-col gap-6">
-
-           <div className="flex flex-1 gap-6 overflow-hidden min-h-[400px]"> 
-
-                <div className={`
-                    transition-all duration-300 ease-in-out overflow-hidden flex flex-col
-                    ${isJsonPanelVisible ? 'w-1/2 opacity-100' : 'w-0 opacity-0 p-0 border-0'} 
-                `}>
-                    <Card className="flex-1 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
-                       <CardHeader className="flex-shrink-0 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600">
-                           <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">Schema Documentation</CardTitle>
-                       </CardHeader>
-                       <CardContent className="flex-1 overflow-y-auto p-4">
-                           {isFetchingMarkdown ? (
-                                <div className="flex justify-center items-center h-full text-muted-foreground">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                </div>
-                           ) : schemaMarkdown ? (
-                                <div className="prose prose-sm dark:prose-invert max-w-none">
-                                   <ReactMarkdown
-                                       remarkPlugins={[remarkGfm]}
-                                       rehypePlugins={[rehypeRaw]}
-                                       components={{
-                                            h1: SchemaH1,
-                                            h2: SchemaH2,
-                                            p: SchemaP,
-                                            table: SchemaTable,
-                                            th: SchemaTh,
-                                            td: SchemaTd,
-                                            blockquote: SchemaBlockquote,
-                                            code: SchemaCode,
-                                            // Optionally: render badges for enums/types/required
-                                            // You can further enhance by parsing inline code or custom syntax for badges
-                                       }}
-                                   >
-                                      {schemaMarkdown}
-                                  </ReactMarkdown>
-                               </div>
-                           ) : (
-                                <div className="flex items-center justify-center h-full text-center text-muted-foreground p-4">
-                                   {(!selectedSchemaName && !useUploadedSchema)
-                                      ? "Select or upload a schema."
-                                      : "Click \"Show Schema Doc\" to generate documentation."
-                                   }
-                                </div>
-                           )}
-                       </CardContent>
-                    </Card>
-                </div>
-
-               <div className={`
-                   transition-all duration-300 ease-in-out overflow-hidden flex flex-col
-                   ${isJsonPanelVisible ? 'w-1/2' : 'w-full'}
-               `}>
-                   <Card className="flex-1 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
-                      <CardHeader className="flex-row justify-between items-center p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
-                         <div className="flex items-center space-x-2">
-                           <FileText className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
-                           <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">CSV Data</CardTitle>
-                           {csvFileName && <span className="text-xs text-muted-foreground truncate">({csvFileName})</span>}
-                         </div>
-                         <div className="flex items-center space-x-1">
-                            <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => { e.stopPropagation(); handleSaveCsv(); }}
-                                className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
-                                disabled={!csvRawText.trim()} 
-                              >
-                                  <Save className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger> <TooltipContent side="bottom"><p>Save Edited CSV</p></TooltipContent> </Tooltip> </TooltipProvider>
-                            {csvRawText.trim() && (
-                               <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleClearCsv(); }} className="hover:bg-destructive/10 text-destructive h-8 w-8">
-                                       <X className="h-4 w-4" />
-                                   </Button>
-                               </TooltipTrigger> <TooltipContent side="bottom"><p>Clear CSV Data</p></TooltipContent> </Tooltip> </TooltipProvider>
-                            )}
-                         </div>
-                       </CardHeader>
-
-                       <div className="flex flex-col items-center justify-center px-6 pt-6 pb-2">
-                         <button
-                           type="button"
-                           onClick={handleUploadClick}
-                           disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                           className={`w-full max-w-md flex items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 py-6 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
-                           tabIndex={0}
-                         >
-                           <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300" />
-                           <span className="text-lg font-medium text-[#1e007d] dark:text-blue-200">
-                             {csvFileName ? `Uploaded: ${csvFileName}` : 'Please upload your CSV here'}
-                           </span>
-                         </button>
-                         <span className="text-xs text-muted-foreground mt-2">Accepted: .csv</span>
-                       </div>
-
-                       <CardContent className="flex-grow p-0 relative min-h-0">
-                         <CodeEditor
-                           value={csvRawText}
-                           language="csv"
-                           readOnly={false}
-                           height="100%"
-                           onChange={setCsvRawText}
-                           highlightedLine={highlightedCsvLine}
-                         />
-                       </CardContent>
-                   </Card>
-               </div>
-           </div> 
-
-           <section className="flex flex-col flex-shrink-0"> 
-             <Card className="border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden flex flex-col">
-                 <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
-                       <div className="flex items-center space-x-2">
-                         {getStatusIcon(overallCsvStatus)}
-                         <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
-                         {(totalErrorCount > 0 || totalWarningCount > 0) && (
-                             <span className="text-sm text-muted-foreground">
-                                 ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
-                                 {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
-                                 {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
-                             </span>
-                         )}
-                       </div>
-                       <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
-                           <Copy className="h-4 w-4" />
-                         </Button>
-                       </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
-                   </CardHeader>
-                   <ScrollArea className="max-h-[40vh]" type="auto"> 
-                       <CardContent className="p-0">
-                          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                            {displayedResults.length === 0 && !isValidatingCsv && (
-                              <div className="flex items-center justify-center p-10 text-muted-foreground">
-                                {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : 'No issues found.'}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 pt-6 pb-4" style={{height: 'calc(100vh - 112px - 72px)'}}>
+          {isJsonPanelVisible ? (
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex flex-row gap-6 flex-1 min-h-0 transition-all duration-[4500ms] ease-[cubic-bezier(0.77,0,0.175,1)]" style={{height: '66%'}}>
+                {/* Schema panel */}
+                <div className="w-1/2 min-w-0 flex flex-col h-full overflow-hidden">
+                  <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
+                     <CardHeader className="flex-shrink-0 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600">
+                         <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">Schema Documentation</CardTitle>
+                     </CardHeader>
+                     <CardContent className="flex-1 overflow-y-auto p-4">
+                         {isFetchingMarkdown ? (
+                              <div className="flex justify-center items-center h-full text-muted-foreground">
+                                  <Loader2 className="h-6 w-6 animate-spin" />
                               </div>
-                            )}
-                            {isValidatingCsv && (
-                              <div className="flex items-center justify-center p-10 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
-                            )}
-                            {displayedResults.length > 0 && displayedResults.map((result, idx) => {
-                              const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
-                              return (
-                                <Accordion
-                                  key={result.row}
-                                  type="single"
-                                  collapsible
-                                  className="w-full border-b border-muted/20 px-4"
-                                  value={openAccordionValue}
-                                  onValueChange={(val) => {
-                                    setOpenAccordionValue(val);
-                                    if (val && val.startsWith('item-')) {
-                                      const rowIdx = parseInt(val.replace('item-', ''), 10);
-                                      setHighlightedCsvLine(rowIdx + 2);
-                                    } else {
-                                      setHighlightedCsvLine(undefined);
-                                    }
-                                  }}
-                                >
-                                  <AccordionItem
-                                    value={`item-${result.row}`}
-                                    className="border-b-0"
-                                  >
-                                    <AccordionTrigger className={`text-sm text-left hover:no-underline py-2 group ${rowSeverity === 'error' ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300' : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'}`}> 
-                                      <div className="flex items-center space-x-2 flex-grow truncate">
-                                        {rowSeverity === 'error' ?
-                                          <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> :
-                                          <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-                                        <span className="font-semibold">Row {result.row + 2}:</span>
-                                        <span className="truncate flex-grow text-muted-foreground">
-                                          {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
-                                          {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
-                                        </span>
-                                      </div>
-                                      <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
-                                    </AccordionTrigger>
-                                    <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
-                                      {result.errors.map((err, index) => (
-                                        <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
-                                          <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
-                                          <div>
-                                            <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
-                                          </div>
-                                        </div>
-                                      ))}
-                                      {result.warnings.map((warn, index) => (
-                                        <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
-                                          <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
-                                          <div>
-                                            <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </AccordionContent>
-                                  </AccordionItem>
-                                </Accordion>
-                              );
-                            })}
-                          </div>
-                       </CardContent>
-                       {validationResults.length > visibleResultCount && (
-                           <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
-                               <Button
-                                   variant="secondary"
-                                   onClick={handleShowMoreResults}
-                                   disabled={isValidatingCsv}
-                               >
-                                   Show More Results ({displayedResults.length} / {validationResults.length})
-                               </Button>
-                           </CardFooter>
-                       )}
-                   </ScrollArea> 
-               </Card>
-             </section> 
+                         ) : schemaMarkdown ? (
+                              <div className="prose prose-sm dark:prose-invert max-w-none">
+                                 <ReactMarkdown
+                                     remarkPlugins={[remarkGfm]}
+                                     rehypePlugins={[rehypeRaw]}
+                                     components={{
+                                          h1: SchemaH1,
+                                          h2: SchemaH2,
+                                          p: SchemaP,
+                                          table: SchemaTable,
+                                          th: SchemaTh,
+                                          td: SchemaTd,
+                                          blockquote: SchemaBlockquote,
+                                          code: SchemaCode,
+                                          // Optionally: render badges for enums/types/required
+                                          // You can further enhance by parsing inline code or custom syntax for badges
+                                     }}
+                                 >
+                                    {schemaMarkdown}
+                                </ReactMarkdown>
+                             </div>
+                         ) : (
+                              <div className="flex items-center justify-center h-full text-center text-muted-foreground p-4">
+                                 {(!selectedSchemaName && !useUploadedSchema)
+                                    ? "Select or upload a schema."
+                                    : "Click \"Show Schema Doc\" to generate documentation."
+                                 }
+                              </div>
+                         )}
+                     </CardContent>
+                  </Card>
+                </div>
+                {/* CSV panel */}
+                <div className="w-1/2 min-w-0 flex flex-col h-full overflow-hidden">
+                  <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
+                     <CardHeader className="flex-row justify-between items-center p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                          <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">CSV Data</CardTitle>
+                          {csvFileName && <span className="text-xs text-muted-foreground truncate">({csvFileName})</span>}
+                        </div>
+                        <div className="flex items-center space-x-1">
+                           <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={(e) => { e.stopPropagation(); handleSaveCsv(); }}
+                               className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
+                               disabled={!csvRawText.trim()} 
+                             >
+                                 <Save className="h-4 w-4" />
+                             </Button>
+                           </TooltipTrigger> <TooltipContent side="bottom"><p>Save Edited CSV</p></TooltipContent> </Tooltip> </TooltipProvider>
+                           {csvRawText.trim() && (
+                              <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleClearCsv(); }} className="hover:bg-destructive/10 text-destructive h-8 w-8">
+                                      <X className="h-4 w-4" />
+                                  </Button>
+                              </TooltipTrigger> <TooltipContent side="bottom"><p>Clear CSV Data</p></TooltipContent> </Tooltip> </TooltipProvider>
+                           )}
+                        </div>
+                      </CardHeader>
 
-        </main>
+                      <div className="flex flex-col items-center justify-center px-6 pt-6 pb-2">
+                        {csvFileName ? (
+                          <button
+                            type="button"
+                            onClick={handleUploadClick}
+                            disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
+                            className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
+                            tabIndex={0}
+                            aria-label="Upload another CSV file"
+                          >
+                            <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleUploadClick}
+                            disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
+                            className={`w-full max-w-md flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 py-6 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
+                            tabIndex={0}
+                          >
+                            <span className="text-lg font-medium text-[#1e007d] dark:text-blue-200 mb-2">
+                              Please upload your CSV here
+                            </span>
+                            <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300 mb-2" />
+                            <span className="text-xs text-muted-foreground mt-2">Accepted: .csv</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <CardContent className="flex-grow p-0 relative min-h-0 overflow-auto">
+                        <CodeEditor
+                          value={csvRawText}
+                          language="csv"
+                          readOnly={false}
+                          height="100%"
+                          onChange={setCsvRawText}
+                          highlightedLine={highlightedCsvLine}
+                          scrollToLine={scrollToLine}
+                        />
+                      </CardContent>
+                  </Card>
+                </div>
+              </div>
+              <div className="h-4 flex-shrink-0" />
+              <div className="w-full min-h-0 flex flex-col flex-shrink-0" style={{height: '34%'}}>
+                <Card className="h-full flex flex-col border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden">
+                   <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                         <div className="flex items-center space-x-4">
+                           {overallCsvStatus === 'valid' ? (
+                             <CheckCircle className="h-5 w-5 text-green-500" />
+                           ) : overallCsvStatus === 'invalid' ? (
+                             <XCircle className="h-5 w-5 text-red-500" />
+                           ) : overallCsvStatus === 'pending' ? (
+                             <FileText className="h-5 w-5 text-gray-400" />
+                           ) : (
+                             <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                           )}
+                           <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
+                           {(totalErrorCount > 0 || totalWarningCount > 0) && (
+                               <span className="text-lg text-muted-foreground font-bold">
+                                   ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
+                                   {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
+                                   {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
+                               </span>
+                           )}
+                         </div>
+                         <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
+                             <Copy className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
+                     </CardHeader>
+                     <ScrollArea className="h-full" type="auto"> 
+                         <CardContent className="p-0 h-full overflow-auto">
+                           <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                             {displayedResults.length === 0 && !isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground">
+                                 {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : 'No issues found.'}
+                               </div>
+                             )}
+                             {isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
+                             )}
+                             {displayedResults.length > 0 && displayedResults.map((result, idx) => {
+                               const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
+                               return (
+                                 <Accordion
+                                   key={result.row}
+                                   type="single"
+                                   collapsible
+                                   className="w-full border-b border-muted/20 px-4"
+                                   value={openAccordionValue}
+                                   onValueChange={(val) => {
+                                     setOpenAccordionValue(val);
+                                     if (val && val.startsWith('item-')) {
+                                       const rowIdx = parseInt(val.replace('item-', ''), 10);
+                                       setHighlightedCsvLine(rowIdx + 2);
+                                       setScrollToLine(rowIdx + 2);
+                                     } else {
+                                       setHighlightedCsvLine(undefined);
+                                       setScrollToLine(undefined);
+                                     }
+                                   }}
+                                 >
+                                   <AccordionItem
+                                     value={`item-${result.row}`}
+                                     className="border-b-0"
+                                   >
+                                     <AccordionTrigger className={cn(
+                                       "text-sm text-left hover:no-underline py-2 group flex items-center",
+                                       rowSeverity === 'error'
+                                         ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300'
+                                         : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'
+                                     )}> 
+                                       <div className="flex items-center space-x-2 flex-grow truncate">
+                                         {rowSeverity === 'error' ?
+                                           <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> :
+                                           <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+                                         <span className="font-semibold">Row {result.row + 2}:</span>
+                                         <span className="truncate flex-grow text-muted-foreground">
+                                           {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
+                                           {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
+                                         </span>
+                                       </div>
+                                       <ChevronDown className={cn(
+                                         "h-4 w-4 ml-2 transition-transform duration-200",
+                                         openAccordionValue === `item-${result.row}` ? 'rotate-180' : ''
+                                       )} />
+                                     </AccordionTrigger>
+                                     <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
+                                       {result.errors.map((err, index) => (
+                                         <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
+                                           <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
+                                           <div>
+                                             <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
+                                           </div>
+                                         </div>
+                                       ))}
+                                       {result.warnings.map((warn, index) => (
+                                         <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
+                                           <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
+                                           <div>
+                                             <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
+                                           </div>
+                                         </div>
+                                       ))}
+                                     </AccordionContent>
+                                   </AccordionItem>
+                                 </Accordion>
+                               );
+                             })}
+                           </div>
+                         </CardContent>
+                         {validationResults.length > visibleResultCount && (
+                             <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+                                 <Button
+                                     variant="secondary"
+                                     onClick={handleShowMoreResults}
+                                     disabled={isValidatingCsv}
+                                 >
+                                     Show More Results ({displayedResults.length} / {validationResults.length})
+                                 </Button>
+                             </CardFooter>
+                         )}
+                     </ScrollArea> 
+                </Card>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{height: '66%'}}>
+                <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
+                   <CardHeader className="flex-row justify-between items-center p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                        <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">CSV Data</CardTitle>
+                        {csvFileName && <span className="text-xs text-muted-foreground truncate">({csvFileName})</span>}
+                      </div>
+                      <div className="flex items-center space-x-1">
+                         <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                           <Button
+                             variant="ghost"
+                             size="icon"
+                             onClick={(e) => { e.stopPropagation(); handleSaveCsv(); }}
+                             className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
+                             disabled={!csvRawText.trim()} 
+                           >
+                               <Save className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger> <TooltipContent side="bottom"><p>Save Edited CSV</p></TooltipContent> </Tooltip> </TooltipProvider>
+                         {csvRawText.trim() && (
+                            <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleClearCsv(); }} className="hover:bg-destructive/10 text-destructive h-8 w-8">
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger> <TooltipContent side="bottom"><p>Clear CSV Data</p></TooltipContent> </Tooltip> </TooltipProvider>
+                         )}
+                      </div>
+                    </CardHeader>
+
+                    <div className="flex flex-col items-center justify-center px-6 pt-6 pb-2">
+                      {csvFileName ? (
+                        <button
+                          type="button"
+                          onClick={handleUploadClick}
+                          disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
+                          className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
+                          tabIndex={0}
+                          aria-label="Upload another CSV file"
+                        >
+                          <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleUploadClick}
+                          disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
+                          className={`w-full max-w-md flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 py-6 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
+                          tabIndex={0}
+                        >
+                          <span className="text-lg font-medium text-[#1e007d] dark:text-blue-200 mb-2">
+                            Please upload your CSV here
+                          </span>
+                          <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300 mb-2" />
+                          <span className="text-xs text-muted-foreground mt-2">Accepted: .csv</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <CardContent className="flex-grow p-0 relative min-h-0 overflow-auto">
+                      <CodeEditor
+                        value={csvRawText}
+                        language="csv"
+                        readOnly={false}
+                        height="100%"
+                        onChange={setCsvRawText}
+                        highlightedLine={highlightedCsvLine}
+                        scrollToLine={scrollToLine}
+                      />
+                    </CardContent>
+                </Card>
+              </div>
+              <div className="h-4 flex-shrink-0" />
+              <div className="min-h-0 flex flex-col flex-shrink-0 overflow-hidden" style={{height: '34%'}}>
+                <Card className="h-full flex flex-col border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden">
+                   <CardHeader className="flex flex-row items-center justify-between bg-[#1e007d]/5 dark:bg-zinc-800/50 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
+                         <div className="flex items-center space-x-4">
+                           {overallCsvStatus === 'valid' ? (
+                             <CheckCircle className="h-5 w-5 text-green-500" />
+                           ) : overallCsvStatus === 'invalid' ? (
+                             <XCircle className="h-5 w-5 text-red-500" />
+                           ) : overallCsvStatus === 'pending' ? (
+                             <FileText className="h-5 w-5 text-gray-400" />
+                           ) : (
+                             <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                           )}
+                           <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">Validation Results</CardTitle>
+                           {(totalErrorCount > 0 || totalWarningCount > 0) && (
+                               <span className="text-lg text-muted-foreground font-bold">
+                                   ({totalErrorCount > 0 ? `${totalErrorCount} Errors` : ''}
+                                   {totalErrorCount > 0 && totalWarningCount > 0 ? ', ' : ''}
+                                   {totalWarningCount > 0 ? `${totalWarningCount} Warnings` : ''})
+                               </span>
+                           )}
+                         </div>
+                         <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={handleCopyResults} disabled={validationResults.length === 0} className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8">
+                             <Copy className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger> <TooltipContent side="bottom"><p>Copy Results</p></TooltipContent> </Tooltip> </TooltipProvider>
+                     </CardHeader>
+                     <ScrollArea className="h-full" type="auto"> 
+                         <CardContent className="p-0 h-full overflow-auto">
+                           <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                             {displayedResults.length === 0 && !isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground">
+                                 {overallCsvStatus === 'pending' ? 'Upload CSV and click Validate.' : 'No issues found.'}
+                               </div>
+                             )}
+                             {isValidatingCsv && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validating...</div>
+                             )}
+                             {displayedResults.length > 0 && displayedResults.map((result, idx) => {
+                               const rowSeverity = result.errors.length > 0 ? 'error' : 'warning';
+                               return (
+                                 <Accordion
+                                   key={result.row}
+                                   type="single"
+                                   collapsible
+                                   className="w-full border-b border-muted/20 px-4"
+                                   value={openAccordionValue}
+                                   onValueChange={(val) => {
+                                     setOpenAccordionValue(val);
+                                     if (val && val.startsWith('item-')) {
+                                       const rowIdx = parseInt(val.replace('item-', ''), 10);
+                                       setHighlightedCsvLine(rowIdx + 2);
+                                       setScrollToLine(rowIdx + 2);
+                                     } else {
+                                       setHighlightedCsvLine(undefined);
+                                       setScrollToLine(undefined);
+                                     }
+                                   }}
+                                 >
+                                   <AccordionItem
+                                     value={`item-${result.row}`}
+                                     className="border-b-0"
+                                   >
+                                     <AccordionTrigger className={cn(
+                                       "text-sm text-left hover:no-underline py-2 group flex items-center",
+                                       rowSeverity === 'error'
+                                         ? 'data-[state=open]:text-red-700 dark:data-[state=open]:text-red-300'
+                                         : 'data-[state=open]:text-yellow-700 dark:data-[state=open]:text-yellow-300'
+                                     )}> 
+                                       <div className="flex items-center space-x-2 flex-grow truncate">
+                                         {rowSeverity === 'error' ?
+                                           <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> :
+                                           <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+                                         <span className="font-semibold">Row {result.row + 2}:</span>
+                                         <span className="truncate flex-grow text-muted-foreground">
+                                           {result.errors[0]?.message || result.warnings[0]?.message || 'Unknown issue'}
+                                           {(result.errors.length + result.warnings.length) > 1 ? ` (+${result.errors.length + result.warnings.length - 1} more)` : ''}
+                                         </span>
+                                       </div>
+                                       <ChevronDown className={cn(
+                                         "h-4 w-4 ml-2 transition-transform duration-200",
+                                         openAccordionValue === `item-${result.row}` ? 'rotate-180' : ''
+                                       )} />
+                                     </AccordionTrigger>
+                                     <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
+                                       {result.errors.map((err, index) => (
+                                         <div key={`err-${index}`} className="flex items-start text-red-600 dark:text-red-400">
+                                           <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
+                                           <div>
+                                             <span className="font-semibold">Error:</span> <span className="font-medium">{err.property || 'N/A'}</span> - {err.message}
+                                           </div>
+                                         </div>
+                                       ))}
+                                       {result.warnings.map((warn, index) => (
+                                         <div key={`warn-${index}`} className="flex items-start text-yellow-600 dark:text-yellow-400">
+                                           <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
+                                           <div>
+                                             <span className="font-semibold">Warning:</span> <span className="font-medium">{warn.property || 'N/A'}</span> - {warn.message}
+                                           </div>
+                                         </div>
+                                       ))}
+                                     </AccordionContent>
+                                   </AccordionItem>
+                                 </Accordion>
+                               );
+                             })}
+                           </div>
+                         </CardContent>
+                         {validationResults.length > visibleResultCount && (
+                             <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+                                 <Button
+                                     variant="secondary"
+                                     onClick={handleShowMoreResults}
+                                     disabled={isValidatingCsv}
+                                 >
+                                     Show More Results ({displayedResults.length} / {validationResults.length})
+                                 </Button>
+                             </CardFooter>
+                         )}
+                     </ScrollArea> 
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
 
          <input
            type="file"
@@ -1019,6 +1300,6 @@ export default function CsvValidator() {
            style={{ display: 'none' }}
          />
 
-      </div>
-    );
+    </div>
+  );
 }

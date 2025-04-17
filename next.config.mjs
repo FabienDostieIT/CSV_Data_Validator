@@ -1,3 +1,5 @@
+import path from 'path';
+
 let userConfig = undefined
 try {
   userConfig = await import('./v0-user-next.config')
@@ -20,6 +22,24 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+  },
+  webpack: (config, { isServer }) => {
+    config.module.rules.push({
+        test: /\.worker\.js$/,
+        type: 'asset/resource',
+        generator: {
+            filename: 'static/chunks/workers/[name].[hash][ext][query]'
+        }
+    });
+    
+    config.module.parser = {
+      ...config.module.parser,
+      javascript: {
+        url: 'relative',
+      },
+    };
+
+    return config;
   },
 }
 
