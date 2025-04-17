@@ -174,11 +174,7 @@ export default function CodeEditor({
           border-radius: 3px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        /* Style for highlighted line */
-        .editor-highlight-line {
-          background-color: rgba(56, 189, 248, 0.25) !important;
-          border-left: 3px solid #38bdf8 !important;
-        }
+        /* Removed global style for highlighted line */
       `}</style>
       <Editor
         height={height}
