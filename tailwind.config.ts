@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss"
+import type { Config } from "tailwindcss";
 
 const config = {
   darkMode: ["class"],
@@ -81,10 +81,15 @@ const config = {
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
       },
+      transitionDuration: {
+        '[300ms]': '300ms',
+      },
+      transitionTimingFunction: {
+        '[cubic-bezier(0.77,0,0.175,1)]': 'cubic-bezier(0.77,0,0.175,1)',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
-} satisfies Config
+} satisfies Config;
 
-export default config
-
+export default config;

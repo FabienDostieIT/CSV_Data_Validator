@@ -4,10 +4,10 @@
 
 We are committed to ensuring the security of the CSV Data Validator. Security updates are applied to the **latest released version** on the `main` branch.
 
-| Version | Supported          |
-| ------- | ------------------ |
+| Version                  | Supported          |
+| ------------------------ | ------------------ |
 | >= 1.0.0 (Latest `main`) | :white_check_mark: |
-| < 1.0.0  | :x:                |
+| < 1.0.0                  | :x:                |
 
 > **Note:** Only the latest code on `main` is actively supported. Older versions do not receive security patches unless otherwise stated.
 
