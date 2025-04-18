@@ -6,7 +6,15 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+// Only render children if open is true
+const AlertDialog = ({ open, children, ...props }: any) => {
+  if (!open) return null;
+  return (
+    <AlertDialogPrimitive.Root open={open} {...props}>
+      {children}
+    </AlertDialogPrimitive.Root>
+  );
+};
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 
