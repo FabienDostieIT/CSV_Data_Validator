@@ -115,11 +115,14 @@ export default function CodeEditor({
 
   useEffect(() => {
     if (!editorRef.current || !monacoRef.current) return;
-    // Remove previous highlight
-    editorRef.current.deltaDecorations(
-      editorRef.current.getModel()?.getAllDecorations().filter(d => d.options.className === 'editor-highlight-line').map(d => d.id) || [],
-      []
-    );
+    // Always clear previous highlight
+    const model = editorRef.current.getModel();
+    if (model) {
+      const allDecorations = model.getAllDecorations();
+      const highlightDecorations = allDecorations.filter(d => d.options.className === 'editor-highlight-line');
+      const highlightIds = highlightDecorations.map(d => d.id);
+      editorRef.current.deltaDecorations(highlightIds, []);
+    }
     if (highlightedLine) {
       editorRef.current.deltaDecorations([], [
         {
@@ -174,15 +177,12 @@ export default function CodeEditor({
           border-radius: 3px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-<<<<<<< HEAD
-        /* Removed global style for highlighted line */
-=======
         /* Style for highlighted line */
         .editor-highlight-line {
-          background-color: rgba(56, 189, 248, 0.25) !important;
-          border-left: 3px solid #38bdf8 !important;
+          background-color: rgba(56, 189, 248, 0.5) !important;
+          border-left: 4px solid #38bdf8 !important;
+          z-index: 10;
         }
->>>>>>> feat/human-readable-schema-validation-ui
       `}</style>
       <Editor
         height={height}

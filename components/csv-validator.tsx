@@ -217,9 +217,10 @@ export default function CsvValidator() {
           const data = await response.json();
           if (data.schemas && Array.isArray(data.schemas)) {
             setAvailableSchemaNames(data.schemas);
-            // Select the first schema by default if list is not empty
+            // Select the first schema's filename by default if list is not empty
             if (data.schemas.length > 0) {
-              setSelectedSchemaName(data.schemas[0]);
+              const first = data.schemas[0];
+              setSelectedSchemaName(typeof first === 'string' ? first : first.filename);
             } else {
               setSelectedSchemaContent("// No schemas found in directory.");
             }
@@ -777,11 +778,15 @@ export default function CsvValidator() {
                    ) : availableSchemaNames.length === 0 && !uploadedSchemaName ? (
                        <SelectItem value="no-schemas" disabled>No schemas found</SelectItem>
                    ) : null}
-                   {availableSchemaNames.map((name) => (
-                       <SelectItem key={name} value={name} className="dark:focus:bg-zinc-700">
-                         {name}
+                   {availableSchemaNames.map((schema) => {
+                     const value = typeof schema === 'string' ? schema : schema.filename;
+                     const label = typeof schema === 'string' ? schema.replace(/\.json$/, '') : schema.name;
+                     return (
+                       <SelectItem key={value} value={value} className="dark:focus:bg-zinc-700">
+                         {label}
                        </SelectItem>
-                   ))}
+                     );
+                   })}
                    {uploadedSchemaContent && (
                         <SelectItem value="uploaded-schema" className="dark:focus:bg-zinc-700">
                            {uploadedSchemaName || "Uploaded Schema"}
@@ -915,31 +920,28 @@ export default function CsvValidator() {
                         </div>
                       </CardHeader>
 
-                      <div className="flex flex-col items-center justify-center px-6 pt-6 pb-2">
+                      <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
                         {csvFileName ? (
                           <button
                             type="button"
                             onClick={handleUploadClick}
                             disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                            className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
+                            className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                             tabIndex={0}
                             aria-label="Upload another CSV file"
                           >
-                            <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300" />
+                            <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={handleUploadClick}
                             disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                            className={`w-full max-w-md flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 py-6 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
+                            className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                             tabIndex={0}
                           >
-                            <span className="text-lg font-medium text-[#1e007d] dark:text-blue-200 mb-2">
-                              Please upload your CSV here
-                            </span>
-                            <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300 mb-2" />
-                            <span className="text-xs text-muted-foreground mt-2">Accepted: .csv</span>
+                            <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                            <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                           </button>
                         )}
                       </div>
@@ -1115,31 +1117,28 @@ export default function CsvValidator() {
                       </div>
                     </CardHeader>
 
-                    <div className="flex flex-col items-center justify-center px-6 pt-6 pb-2">
+                    <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
                       {csvFileName ? (
                         <button
                           type="button"
                           onClick={handleUploadClick}
                           disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                          className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
+                          className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                           tabIndex={0}
                           aria-label="Upload another CSV file"
                         >
-                          <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300" />
+                          <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={handleUploadClick}
                           disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                          className={`w-full max-w-md flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 py-6 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
+                          className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                           tabIndex={0}
                         >
-                          <span className="text-lg font-medium text-[#1e007d] dark:text-blue-200 mb-2">
-                            Please upload your CSV here
-                          </span>
-                          <Upload className="h-7 w-7 text-[#1e007d] dark:text-blue-300 mb-2" />
-                          <span className="text-xs text-muted-foreground mt-2">Accepted: .csv</span>
+                          <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                          <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                         </button>
                       )}
                     </div>
