@@ -21,6 +21,8 @@ interface CodeEditorProps {
   errorDecorations?: EditorErrorDecoration[] // Changed from errorLines: number[]
   highlightedLine?: number // New prop for line highlighting
   scrollToLine?: number // New prop for auto-scroll
+  highlightedLine?: number // New prop for line highlighting
+  scrollToLine?: number // New prop for auto-scroll
 }
 
 export default function CodeEditor({
@@ -187,14 +189,8 @@ export default function CodeEditor({
         }
         /* Style for highlighted line */
         .editor-highlight-line {
-          background-color: rgba(56, 189, 248, 0.15) !important; // much less opaque
-          border-left: 2px solid #38bdf8 !important;
-          z-index: 10;
-          pointer-events: none; // allow editing even when highlighted
-        }
-          background-color: rgba(56, 189, 248, 0.5) !important;
-          border-left: 4px solid #38bdf8 !important;
-          z-index: 10;
+          background-color: rgba(56, 189, 248, 0.25) !important;
+          border-left: 3px solid #38bdf8 !important;
         }
       `}</style>
       <Editor
