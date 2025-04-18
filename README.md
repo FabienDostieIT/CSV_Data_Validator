@@ -28,6 +28,7 @@ A modern web-based tool to validate CSV data against JSON schemas, edit CSVs, an
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or later recommended)
 - pnpm (or npm/yarn)
 

@@ -1,9 +1,9 @@
 /**
  * Tests for the ValidationUI React component
  */
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
 // Skipping test: missing lib/validation-api implementation
 // jest.mock('../../../lib/validation-api', () => ({
@@ -21,8 +21,8 @@ import '@testing-library/jest-dom';
 // Skipping test: missing components/ValidationUI implementation
 // import ValidationUI from '../../../components/ValidationUI';
 
-describe('ValidationUI Component', () => {
-  it('skipped: missing components/ValidationUI implementation', () => {
+describe("ValidationUI Component", () => {
+  it("skipped: missing components/ValidationUI implementation", () => {
     expect(true).toBe(true);
   });
 });

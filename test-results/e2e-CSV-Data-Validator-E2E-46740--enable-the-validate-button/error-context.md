@@ -1,73 +1,115 @@
 # Test info
 
 - Name: CSV Data Validator E2E >> should allow uploading a CSV and enable the validate button
-- Location: /home/lefab/Documents/JSON_Schema_Validator/tests/e2e/e2e.spec.ts:25:3
+- Location: /home/lefab/Documents/JSON_Schema_Validator/tests/e2e/e2e.spec.ts:31:3
 
 # Error details
 
 ```
-Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
-Call log:
-  - navigating to "http://localhost:3000/", waiting until "load"
+Error: page.waitForEvent: Test timeout of 30000ms exceeded.
+=========================== logs ===========================
+waiting for event "filechooser"
+============================================================
+    at /home/lefab/Documents/JSON_Schema_Validator/tests/e2e/e2e.spec.ts:35:37
+```
 
-    at /home/lefab/Documents/JSON_Schema_Validator/tests/e2e/e2e.spec.ts:26:16
+# Page snapshot
+
+```yaml
+- banner:
+  - img "Company Logo"
+  - text: "|"
+  - heading "CSV Data Validator" [level=1]
+  - button [disabled]:
+    - img
+- text: "Schema:"
+- combobox [disabled]: Loading...
+- button "Upload Schema":
+  - img
+  - text: Upload Schema
+- button "Show Schema View" [disabled]
+- button "Validate Data" [disabled]
+- img
+- text: CSV Data
+- button [disabled]:
+  - img
+- button "Upload CSV":
+  - img
+  - text: Upload CSV
+- text: Loading...
+- img
+- text: Validation Results
+- button [disabled]:
+  - img
+- text: Upload CSV and click Validate.
+- region "Notifications (F8)":
+  - list
 ```
 
 # Test source
 
 ```ts
-   1 | import { test, expect } from '@playwright/test';
+   1 | import { test, expect } from "@playwright/test";
    2 |
-   3 | test.describe('CSV Data Validator E2E', () => {
-   4 |   test('should load the home page and display the app title', async ({ page }) => {
-   5 |     await page.goto('http://localhost:3000/');
-   6 |     await expect(page.locator('h1')).toContainText('CSV Data Validator');
-   7 |   });
-   8 |
-   9 |   test('should display the upload CSV button', async ({ page }) => {
-  10 |     await page.goto('http://localhost:3000/');
-  11 |     await expect(page.getByRole('button', { name: /upload/i })).toBeVisible();
-  12 |   });
-  13 |
-  14 |   test('should display the schema dropdown', async ({ page }) => {
-  15 |     await page.goto('http://localhost:3000/');
-  16 |     await expect(page.getByText(/schema:/i)).toBeVisible();
-  17 |   });
-  18 |
-  19 |   test('should have the validate button disabled when no CSV is uploaded', async ({ page }) => {
-  20 |     await page.goto('http://localhost:3000/');
-  21 |     const validateButton = page.getByRole('button', { name: /validate data/i });
-  22 |     await expect(validateButton).toBeDisabled();
-  23 |   });
-  24 |
-  25 |   test('should allow uploading a CSV and enable the validate button', async ({ page }) => {
-> 26 |     await page.goto('http://localhost:3000/');
-     |                ^ Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
-  27 |     const fileChooserPromise = page.waitForEvent('filechooser');
-  28 |     await page.getByRole('button', { name: /upload/i }).click();
-  29 |     const fileChooser = await fileChooserPromise;
-  30 |     await fileChooser.setFiles('public/fixtures/sample.csv');
-  31 |     const validateButton = page.getByRole('button', { name: /validate data/i });
-  32 |     await expect(validateButton).toBeEnabled();
-  33 |   });
-  34 |
-  35 |   test('should validate CSV and display results', async ({ page }) => {
-  36 |     await page.goto('http://localhost:3000/');
-  37 |     const fileChooserPromise = page.waitForEvent('filechooser');
-  38 |     await page.getByRole('button', { name: /upload/i }).click();
-  39 |     const fileChooser = await fileChooserPromise;
-  40 |     await fileChooser.setFiles('public/fixtures/sample.csv');
-  41 |     // Select a schema if needed (assumes at least one is present)
-  42 |     const schemaDropdown = page.getByText(/schema:/i);
-  43 |     await schemaDropdown.click();
-  44 |     const schemaOption = page.locator('.radix-select-item').first();
-  45 |     await schemaOption.click();
-  46 |     // Validate
-  47 |     const validateButton = page.getByRole('button', { name: /validate data/i });
-  48 |     await validateButton.click();
-  49 |     // Wait for results
-  50 |     await expect(page.getByText(/validation results/i)).toBeVisible();
-  51 |     // Optionally check for error/warning icons or messages
-  52 |   });
-  53 | });
+   3 | test.describe("CSV Data Validator E2E", () => {
+   4 |   test("should load the home page and display the app title", async ({
+   5 |     page,
+   6 |   }) => {
+   7 |     await page.goto("http://localhost:3000/");
+   8 |     await expect(page.locator("h1")).toContainText("CSV Data Validator");
+   9 |   });
+  10 |
+  11 |   test("should display the upload CSV button", async ({ page }) => {
+  12 |     await page.goto("http://localhost:3000/");
+  13 |     await expect(
+  14 |       page.getByRole("button", { name: "Upload CSV" }),
+  15 |     ).toBeVisible();
+  16 |   });
+  17 |
+  18 |   test("should display the schema dropdown", async ({ page }) => {
+  19 |     await page.goto("http://localhost:3000/");
+  20 |     await expect(page.getByText(/schema:/i)).toBeVisible();
+  21 |   });
+  22 |
+  23 |   test("should have the validate button disabled when no CSV is uploaded", async ({
+  24 |     page,
+  25 |   }) => {
+  26 |     await page.goto("http://localhost:3000/");
+  27 |     const validateButton = page.getByRole("button", { name: /validate data/i });
+  28 |     await expect(validateButton).toBeDisabled();
+  29 |   });
+  30 |
+  31 |   test("should allow uploading a CSV and enable the validate button", async ({
+  32 |     page,
+  33 |   }) => {
+  34 |     await page.goto("http://localhost:3000/");
+> 35 |     const fileChooserPromise = page.waitForEvent("filechooser");
+     |                                     ^ Error: page.waitForEvent: Test timeout of 30000ms exceeded.
+  36 |     await page.getByRole("button", { name: "Upload CSV" }).click();
+  37 |     const fileChooser = await fileChooserPromise;
+  38 |     await fileChooser.setFiles("public/fixtures/sample.csv");
+  39 |     const validateButton = page.getByRole("button", { name: /validate data/i });
+  40 |     await expect(validateButton).toBeEnabled();
+  41 |   });
+  42 |
+  43 |   test("should validate CSV and display results", async ({ page }) => {
+  44 |     await page.goto("http://localhost:3000/");
+  45 |     const fileChooserPromise = page.waitForEvent("filechooser");
+  46 |     await page.getByRole("button", { name: "Upload CSV" }).click();
+  47 |     const fileChooser = await fileChooserPromise;
+  48 |     await fileChooser.setFiles("public/fixtures/sample.csv");
+  49 |     // Select a schema if needed (assumes at least one is present)
+  50 |     const schemaDropdown = page.getByText(/schema:/i);
+  51 |     await schemaDropdown.click();
+  52 |     const schemaOption = page.locator(".radix-select-item").first();
+  53 |     await schemaOption.click();
+  54 |     // Validate
+  55 |     const validateButton = page.getByRole("button", { name: /validate data/i });
+  56 |     await validateButton.click();
+  57 |     // Wait for results
+  58 |     await expect(page.getByText(/validation results/i)).toBeVisible();
+  59 |     // Optionally check for error/warning icons or messages
+  60 |   });
+  61 | });
+  62 |
 ```

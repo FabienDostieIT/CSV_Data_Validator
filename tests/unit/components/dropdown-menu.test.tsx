@@ -1,16 +1,16 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import userEvent from '@testing-library/user-event';
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import userEvent from "@testing-library/user-event";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
-} from '../../../components/ui/dropdown-menu';
+  DropdownMenuItem,
+} from "../../../components/ui/dropdown-menu";
 
-describe('DropdownMenu component', () => {
-  it('renders trigger and content', async () => {
+describe("DropdownMenu component", () => {
+  it("renders trigger and content", async () => {
     render(
       <DropdownMenu>
         <DropdownMenuTrigger>Open Menu</DropdownMenuTrigger>
@@ -18,12 +18,12 @@ describe('DropdownMenu component', () => {
           <DropdownMenuItem>Item 1</DropdownMenuItem>
           <DropdownMenuItem>Item 2</DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>,
     );
-    expect(screen.getByText('Open Menu')).toBeInTheDocument();
+    expect(screen.getByText("Open Menu")).toBeInTheDocument();
     // Open the dropdown
-    await userEvent.click(screen.getByText('Open Menu'));
-    expect(screen.getByText('Item 1')).toBeInTheDocument();
-    expect(screen.getByText('Item 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Open Menu"));
+    expect(screen.getByText("Item 1")).toBeInTheDocument();
+    expect(screen.getByText("Item 2")).toBeInTheDocument();
   });
 });

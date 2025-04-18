@@ -1,1 +1,1 @@
-declare module 'json-schema-static-docs';
+declare module "json-schema-static-docs";
