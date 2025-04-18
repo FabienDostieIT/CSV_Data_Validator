@@ -255,6 +255,8 @@ export default function CsvValidator() {
             if (data.schemas.length > 0) {
               const first = data.schemas[0];
               setSelectedSchemaName(typeof first === 'string' ? first : first.filename);
+              const first = data.schemas[0];
+              setSelectedSchemaName(typeof first === 'string' ? first : first.filename);
             } else {
               setSelectedSchemaContent("// No schemas found in directory.");
             }
@@ -713,7 +715,15 @@ export default function CsvValidator() {
                      return (
                        <SelectItem key={value} value={value} className="dark:focus:bg-zinc-700">
                          {label}
+                   {availableSchemaNames.map((schema) => {
+                     const value = typeof schema === 'string' ? schema : schema.filename;
+                     const label = typeof schema === 'string' ? schema.replace(/\.json$/, '') : schema.name;
+                     return (
+                       <SelectItem key={value} value={value} className="dark:focus:bg-zinc-700">
+                         {label}
                        </SelectItem>
+                     );
+                   })}
                      );
                    })}
                    {uploadedSchemaContent && (
@@ -850,33 +860,33 @@ export default function CsvValidator() {
                       </CardHeader>
 
                       <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
+                      <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
                         {csvFileName ? (
                           <button
                             type="button"
                             onClick={handleUploadClick}
-<<<<<<< HEAD
                             disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-=======
+                            className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                             disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
->>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
                             className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                             tabIndex={0}
                             aria-label="Upload another CSV file"
                           >
+                            <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                             <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={handleUploadClick}
-<<<<<<< HEAD
                             disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-=======
+                            className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                             disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
->>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
                             className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                             tabIndex={0}
                           >
+                            <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                            <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                             <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                             <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                           </button>
@@ -1017,33 +1027,33 @@ export default function CsvValidator() {
                     </CardHeader>
 
                     <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
+                    <div className="flex flex-col items-center justify-center px-1 pt-1 pb-1">
                       {csvFileName ? (
                         <button
                           type="button"
                           onClick={handleUploadClick}
-<<<<<<< HEAD
                           disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-=======
+                          className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                           disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
->>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
                           className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                           tabIndex={0}
                           aria-label="Upload another CSV file"
                         >
+                          <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                           <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={handleUploadClick}
-<<<<<<< HEAD
                           disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-=======
+                          className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                           disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
->>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
                           className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                           tabIndex={0}
                         >
+                          <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
+                          <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                           <Upload className="h-5 w-5 text-[#1e007d] dark:text-blue-300" />
                           <span className="text-xs font-medium text-[#1e007d] dark:text-blue-200 mt-0.5">Upload CSV</span>
                         </button>
