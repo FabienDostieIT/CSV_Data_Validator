@@ -118,7 +118,7 @@ try {
     const { type, payload } = event.data;
 
     if (type === 'validate') {
-      const { csvData, schema: parsedSchema } = payload;
+      const { csvData, schema: parsedSchema, firstDataRowLine } = payload;
       console.log(`Worker: Received validation request for ${csvData?.length} rows.`);
 
       if (!csvData || csvData.length === 0) {
@@ -161,7 +161,7 @@ try {
         console.log(`Worker: Starting row-by-row processing and validation...`);
         for (let i = 0; i < csvData.length; i++) {
           const originalRowData = csvData[i];
-          const csvRowNum = i + 2;
+          const csvRowNum = i + (firstDataRowLine || 2);
           let processedRowData = {};
           let rowWarnings = [];
           let rowErrors = [];

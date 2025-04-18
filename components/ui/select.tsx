@@ -1,6 +1,11 @@
 "use client"
 
 import * as React from "react"
+// Polyfill scrollIntoView for test environment
+if (typeof window !== 'undefined' && window.HTMLElement && !window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = function() {};
+}
+
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
