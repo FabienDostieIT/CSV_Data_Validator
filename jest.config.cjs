@@ -1,5 +1,9 @@
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  transform: {
+    '^.+\\.[jt]sx?$': 'ts-jest',
+  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

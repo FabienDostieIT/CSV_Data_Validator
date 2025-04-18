@@ -856,8 +856,6 @@ export default function CsvValidator() {
                             onClick={handleUploadClick}
                             disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
                             className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
-                            disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                            className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                             tabIndex={0}
                             aria-label="Upload another CSV file"
                           >
@@ -868,8 +866,6 @@ export default function CsvValidator() {
                             type="button"
                             onClick={handleUploadClick}
                             disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-                            className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
-                            disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
                             className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                             tabIndex={0}
                           >
@@ -1019,8 +1015,6 @@ export default function CsvValidator() {
                           onClick={handleUploadClick}
                           disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
                           className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
-                          disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
-                          className={`w-8 h-8 flex items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed ${csvFileName ? 'border-green-400 bg-green-50/60 dark:bg-green-900/20' : ''}`}
                           tabIndex={0}
                           aria-label="Upload another CSV file"
                         >
@@ -1031,8 +1025,6 @@ export default function CsvValidator() {
                           type="button"
                           onClick={handleUploadClick}
                           disabled={isLoadingSchemaContent || workerBusy || isLoadingCsv}
-                          className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
-                          disabled={isLoadingSchemaContent || isValidatingCsv || isLoadingCsv}
                           className={`w-28 h-10 flex flex-col items-center justify-center rounded border-2 border-dashed border-[#1e007d]/30 dark:border-zinc-600 bg-white/60 dark:bg-zinc-900/40 shadow-sm hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed`}
                           tabIndex={0}
                         >
