@@ -179,10 +179,16 @@ export default function CodeEditor({
         }
         /* Style for highlighted line */
         .editor-highlight-line {
+<<<<<<< HEAD
           background-color: rgba(56, 189, 248, 0.15) !important; // much less opaque
           border-left: 2px solid #38bdf8 !important;
           z-index: 10;
           pointer-events: none; // allow editing even when highlighted
+=======
+          background-color: rgba(56, 189, 248, 0.5) !important;
+          border-left: 4px solid #38bdf8 !important;
+          z-index: 10;
+>>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
         }
       `}</style>
       <Editor
