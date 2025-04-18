@@ -30,19 +30,6 @@ jobs:
       - name: Format check
         run: pnpm format --check || true
 
-<<<<<<< HEAD
-      - name: Build
-        run: pnpm build
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-
-      - name: Run unit tests
-        run: pnpm test
-
-      - name: Run Playwright e2e tests
-        run: pnpm test:e2e
-=======
       - name: Run unit tests
         run: pnpm test
 
@@ -51,4 +38,3 @@ jobs:
 
       - name: Run Playwright e2e tests
         run: pnpm e2e
->>>>>>> be234e6 (chore: test and performance experiments (web worker, e2e, UI tweaks))
