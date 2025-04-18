@@ -30,11 +30,14 @@ jobs:
       - name: Format check
         run: pnpm format --check || true
 
-      - name: Run unit tests
-        run: pnpm test
-
       - name: Build
         run: pnpm build
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run unit tests
+        run: pnpm test
+
       - name: Run Playwright e2e tests
-        run: pnpm e2e
+        run: pnpm test:e2e
