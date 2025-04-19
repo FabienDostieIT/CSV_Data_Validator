@@ -3,7 +3,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 import { type Payload } from "recharts/types/component/DefaultTooltipContent";
-import type { ChartDataPayload, ChartIndicator } from "recharts/types/component/DefaultTooltipContent";
 import type { LegendProps } from "recharts/types/component/Legend";
 import type { TooltipProps } from "recharts/types/component/Tooltip";
 
@@ -105,13 +104,13 @@ ${colorConfig
 };
 
 // Define explicit prop types using Recharts types
-interface ChartTooltipProps extends TooltipProps<number | string, string> {
-  indicator?: ChartIndicator;
+interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | string, string> {
+  indicator?: RechartsPrimitive.ChartIndicator;
   hideLabel?: boolean;
   hideIndicator?: boolean;
   labelKey?: string;
   labelFormatter?: (label: string, payload: Payload<number | string, string>[]) => React.ReactNode;
-  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: ChartDataPayload) => React.ReactNode;
+  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: Payload<number | string, string>["payload"] | undefined) => React.ReactNode;
   color?: string;
   className?: string;
 }
@@ -174,7 +173,7 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
           const itemColor = typeof item.color === 'string' ? item.color : undefined;
           const indicatorColor: string = color || itemColor || payloadFill || "hsl(var(--primary))";
           
-          let formatterPayload: ChartDataPayload = {};
+          let formatterPayload: Payload<number | string, string>["payload"] | undefined = undefined;
           if (
             typeof item.payload === 'object' && 
             item.payload !== null && 
@@ -182,7 +181,7 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
           ) {
             // Disable persistent error for this assignment after checks
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            formatterPayload = item.payload as ChartDataPayload; 
+            formatterPayload = item.payload; 
           }
 
           const safeValue = (typeof item.value === 'number' || typeof item.value === 'string') ? item.value : 0;
