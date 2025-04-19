@@ -10,19 +10,12 @@ import React, {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
@@ -36,15 +29,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import CodeEditor from "@/components/code-editor";
 import ThemeToggle from "@/components/theme-toggle";
-import { useTheme } from "@/components/theme-provider";
 import {
-  Check,
   Copy,
-  Download,
   FileText,
   Upload,
   Loader2,
@@ -52,15 +41,9 @@ import {
   XCircle,
   AlertTriangle,
   X,
-  ChevronDown,
   Save,
   Info,
   Key,
-  Hash,
-  List,
-  Type,
-  Asterisk,
-  Code2,
   ClipboardList,
 } from "lucide-react";
 import Papa from "papaparse";
@@ -70,6 +53,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import ValidationResults from "@/components/validation-results";
+import Image from "next/image";
 
 // --- Web Worker Setup ---
 const getWorker = (() => {
@@ -94,79 +78,91 @@ const schemaListCache: { list?: string[] } = {};
 const schemaContentCache: Record<string, SchemaContent> = {};
 
 // --- Custom Markdown Components for Styling ---
-const CustomH1 = ({ node, ...props }: any) => (
-  <h1 className="text-2xl font-bold mt-6 mb-3 border-b pb-1" {...props} />
-);
-const CustomH2 = ({ node, ...props }: any) => (
-  <h2 className="text-lg font-semibold mt-4 mb-2" {...props} />
-);
-const CustomTable = ({ node, ...props }: any) => (
-  <table className="w-full my-3 border-collapse text-sm" {...props} />
-);
-const CustomThead = ({ node, ...props }: any) => (
-  <thead className="hidden" {...props} />
-); // Hide default thead if simple key-value
-const CustomTbody = ({ node, ...props }: any) => <tbody {...props} />;
-const CustomTr = ({ node, ...props }: any) => (
-  <tr className="border-b border-muted/40" {...props} />
-);
-const CustomTh = ({ node, ...props }: any) => (
-  <th className="p-2 text-left font-semibold w-1/4" {...props} />
-); // Key column
-const CustomTd = ({ node, ...props }: any) => (
-  <td className="p-2 align-top" {...props} />
-); // Value column
-const CustomCode = ({ node, ...props }: any) => (
-  <code
-    className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono"
-    {...props}
-  />
-);
-const CustomP = ({ node, ...props }: any) => (
-  <p className="mb-2 leading-relaxed" {...props} />
-);
-const CustomHr = ({ node, ...props }: any) => (
-  <hr className="my-6 border-border" {...props} />
-);
+// const CustomH1 = ({ _node, children, ...props }: any) => (
+//   <h1 className="text-2xl font-bold mt-6 mb-3 border-b pb-1" {...props}>
+//     {children}
+//   </h1>
+// );
+// const CustomH2 = ({ _node, children, ...props }: any) => (
+//   <h2 className="text-lg font-semibold mt-4 mb-2" {...props}>
+//     {children}
+//   </h2>
+// );
+// const CustomTable = ({ _node, ...props }: any) => (
+//   <table className="w-full my-3 border-collapse text-sm" {...props} />
+// );
+// const CustomThead = ({ _node, ...props }: any) => (
+//   <thead className="hidden" {...props} />
+// ); 
+// const CustomTbody = ({ _node, ...props }: any) => <tbody {...props} />;
+// const CustomTr = ({ _node, ...props }: any) => (
+//   <tr className="border-b border-muted/40" {...props} />
+// );
+// const CustomTh = ({ _node, ...props }: any) => (
+//   <th className="p-2 text-left font-semibold w-1/4" {...props} />
+// ); 
+// const CustomTd = ({ _node, ...props }: any) => (
+//   <td className="p-2 align-top" {...props} />
+// ); 
+// const CustomCode = ({ _node, ...props }: any) => (
+//   <code
+//     className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono"
+//     {...props}
+//   />
+// );
+// const CustomP = ({ _node, ...props }: any) => (
+//   <p className="mb-2 leading-relaxed" {...props} />
+// );
+// const CustomHr = ({ _node, ...props }: any) => (
+//   <hr className="my-6 border-border" {...props} />
+// );
 
 // --- Modern Custom Markdown Components for Schema Doc Styling ---
-const SchemaH1 = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaH1 = ({ _node, ...props }: any) => (
   <h1 className="text-3xl font-extrabold mt-8 mb-4 flex items-center gap-2 text-gradient-to-r from-blue-600 to-purple-600">
     <ClipboardList className="h-6 w-6 text-blue-500" /> {props.children}
   </h1>
 );
-const SchemaH2 = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaH2 = ({ _node, ...props }: any) => (
   <h2 className="text-xl font-bold mt-6 mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300">
     <Key className="h-5 w-5 text-purple-500" /> {props.children}
   </h2>
 );
-const SchemaTable = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaTable = ({ _node, ...props }: any) => (
   <table className="w-full my-3 border-separate border-spacing-y-1 text-sm bg-white/80 dark:bg-zinc-900/40 rounded-xl overflow-hidden shadow">
     {props.children}
   </table>
 );
-const SchemaTh = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaTh = ({ _node, ...props }: any) => (
   <th
     className="p-2 text-left font-semibold bg-blue-50 dark:bg-zinc-800 text-blue-900 dark:text-blue-200"
     {...props}
   />
 );
-const SchemaTd = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaTd = ({ _node, ...props }: any) => (
   <td className="p-2 align-top" {...props} />
 );
-const SchemaBlockquote = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaBlockquote = ({ _node, ...props }: any) => (
   <blockquote className="border-l-4 border-blue-400 bg-blue-50/60 dark:bg-zinc-800/40 p-3 my-3 rounded-md text-blue-900 dark:text-blue-200 flex items-start gap-2">
     <Info className="h-5 w-5 text-blue-400 mt-0.5" />
     <span>{props.children}</span>
   </blockquote>
 );
-const SchemaCode = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaCode = ({ _node, ...props }: any) => (
   <code
     className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-sm font-mono text-blue-700 dark:text-blue-200"
     {...props}
   />
 );
-const SchemaP = ({ node, ...props }: any) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SchemaP = ({ _node, ...props }: any) => (
   <p
     className="mb-2 leading-relaxed text-zinc-700 dark:text-zinc-200"
     {...props}
@@ -174,14 +170,14 @@ const SchemaP = ({ node, ...props }: any) => (
 );
 
 // --- Badge Renderer for Markdown (for enums, types, required, etc.) ---
-const SchemaBadge = ({ children, color = "blue", icon }: any) => (
-  <Badge
-    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-${color}-100 text-${color}-800 dark:bg-${color}-900/40 dark:text-${color}-200 mr-1 mb-1`}
-  >
-    {icon && React.createElement(icon, { className: "h-3 w-3 mr-0.5" })}
-    {children}
-  </Badge>
-);
+// const SchemaBadge = ({ children, color = "blue", icon }: any) => (
+//   <Badge
+//     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-${color}-100 text-${color}-800 dark:bg-${color}-900/40 dark:text-${color}-200 mr-1 mb-1`}
+//   >
+//     {icon && React.createElement(icon, { className: "h-3 w-3 mr-0.5" })}
+//     {children}
+//   </Badge>
+// );
 
 // Interface for a single validation issue (error or warning)
 interface ValidationIssue {
@@ -196,14 +192,50 @@ interface RowValidationResults {
   warnings: ValidationIssue[];
 }
 
-// Debounce utility
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
-  let timer: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
+// Interface for the schema documentation API response
+interface SchemaDocResponse {
+  markdown: string;
 }
+
+// Interface for the schema list API response
+interface SchemaListResponse {
+  schemas: string[];
+}
+
+// Interface for single schema content API response
+interface SchemaContentResponse {
+  content: Record<string, unknown> | string;
+}
+
+// Interfaces for Worker messages
+interface WorkerMessageResultsBatch {
+  type: 'resultsBatch';
+  payload: { results: RowValidationResults[] };
+}
+
+interface WorkerMessageComplete {
+  type: 'complete';
+  payload: { totalErrors: number; totalWarnings: number };
+}
+
+interface WorkerMessageError {
+  type: 'error';
+  payload: { message: string };
+}
+
+type WorkerMessageData = 
+  | WorkerMessageResultsBatch 
+  | WorkerMessageComplete 
+  | WorkerMessageError;
+
+// Debounce utility
+// function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
+//   let timer: ReturnType<typeof setTimeout>;
+//   return (...args: Parameters<T>) => {
+//     clearTimeout(timer);
+//     timer = setTimeout(() => fn(...args), delay);
+//   };
+// }
 
 export default function CsvValidator() {
   // --- State Variables --- // Uncomment most
@@ -211,10 +243,10 @@ export default function CsvValidator() {
     [],
   ); // List of schema filenames
   const [selectedSchemaName, setSelectedSchemaName] = useState<string>(""); // Currently selected filename
-  const [selectedSchemaContent, setSelectedSchemaContent] = useState<any>(""); // Should ideally be parsed JSON object or string
+  const [selectedSchemaContent, setSelectedSchemaContent] = useState<Record<string, unknown> | string>(""); // Allow object or string
   const [uploadedSchemaContent, setUploadedSchemaContent] = useState<
-    any | null
-  >(null); // State for uploaded schema content
+    Record<string, unknown> | null
+  >(null); // Use Record<string, unknown> instead of any
   const [uploadedSchemaName, setUploadedSchemaName] = useState<string | null>(
     null,
   ); // State for uploaded schema name
@@ -231,8 +263,6 @@ export default function CsvValidator() {
     useState<boolean>(false);
   const [isLoadingCsv, setIsLoadingCsv] = useState<boolean>(false);
   const [csvFileName, setCsvFileName] = useState<string>("");
-  const [showFailureOverlay, setShowFailureOverlay] = useState<boolean>(false);
-  const [showSuccessOverlay, setShowSuccessOverlay] = useState<boolean>(false); // Re-add simple overlay state
   const [overallCsvStatus, setOverallCsvStatus] = useState<
     "valid" | "invalid" | "pending" | "error"
   >("pending");
@@ -249,7 +279,6 @@ export default function CsvValidator() {
     undefined,
   );
   const [workerBusy, setWorkerBusy] = useState(false);
-  const [workerError, setWorkerError] = useState<string | null>(null);
 
   // Uncomment Refs
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
@@ -259,7 +288,6 @@ export default function CsvValidator() {
   const validationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const { toast } = useToast();
-  const { theme } = useTheme();
 
   const parentRef = useRef<HTMLDivElement>(null); // Ref for the *main* scrollable element
 
@@ -293,11 +321,11 @@ export default function CsvValidator() {
     if (validationResults.length > 0 && visibleResultCount < 20) {
       setVisibleResultCount(Math.min(20, validationResults.length));
     }
-  }, [validationResults]);
+  }, [validationResults, visibleResultCount]);
 
-  // --- Function to Fetch and Render Schema Docs --- // Moved definition *before* useEffect that needs it
+  // --- Function to Fetch and Render Schema Docs ---
   const fetchAndRenderSchemaDoc = useCallback(
-    async (schemaOverride?: any) => {
+    async (schemaOverride?: Record<string, unknown>) => {
       // Determine schema: use override if provided, otherwise use state
       const schemaToUse = schemaOverride
         ? schemaOverride
@@ -338,11 +366,11 @@ export default function CsvValidator() {
           );
         }
 
-        const result = await response.json();
+        const result = await response.json() as SchemaDocResponse;
         setSchemaMarkdown(result.markdown);
       } catch (error: any) {
         console.error("Failed to fetch/generate schema docs:", error);
-        toast({
+        void toast({
           title: "Error",
           description: `Could not generate schema documentation: ${error.message}`,
           variant: "destructive",
@@ -369,16 +397,14 @@ export default function CsvValidator() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
+        const data = await response.json() as SchemaListResponse;
         if (data.schemas && Array.isArray(data.schemas)) {
           schemaListCache.list = data.schemas;
           setAvailableSchemaNames(data.schemas);
           // Select the first schema's filename by default if list is not empty
           if (data.schemas.length > 0) {
             const first = data.schemas[0];
-            setSelectedSchemaName(
-              typeof first === "string" ? first : first.filename,
-            );
+            setSelectedSchemaName(first);
           } else {
             setSelectedSchemaContent("// No schemas found in directory.");
           }
@@ -387,7 +413,7 @@ export default function CsvValidator() {
         }
       } catch (error) {
         console.error("Failed to fetch schema list:", error);
-        toast({
+        void toast({
           title: "Error",
           description: "Could not load schema list.",
           variant: "destructive",
@@ -397,7 +423,7 @@ export default function CsvValidator() {
         setIsLoadingSchemaList(false);
       }
     };
-    fetchSchemaList();
+    void fetchSchemaList(); // Add void to the call
   }, [toast]); // Add toast dependency
 
   // --- Effect to fetch schema content when selection changes --- // Uncomment
@@ -420,7 +446,7 @@ export default function CsvValidator() {
           setSelectedSchemaContent(schemaContentCache[selectedSchemaName]);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            fetchAndRenderSchemaDoc(schemaContentCache[selectedSchemaName]);
+            await fetchAndRenderSchemaDoc(schemaContentCache[selectedSchemaName]);
           }
           return;
         }
@@ -429,13 +455,13 @@ export default function CsvValidator() {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          const data = await response.json();
+          const data = await response.json() as SchemaContentResponse;
           const newSchemaContent = data.content;
           schemaContentCache[selectedSchemaName] = newSchemaContent;
           setSelectedSchemaContent(newSchemaContent);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            fetchAndRenderSchemaDoc(newSchemaContent);
+            await fetchAndRenderSchemaDoc(newSchemaContent);
           }
           return;
         }
@@ -448,7 +474,7 @@ export default function CsvValidator() {
           setSelectedSchemaContent(newSchemaContent);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            fetchAndRenderSchemaDoc(uploadedSchemaContent);
+            await fetchAndRenderSchemaDoc(uploadedSchemaContent);
           }
           return;
         }
@@ -457,7 +483,7 @@ export default function CsvValidator() {
         setSchemaMarkdown("");
       } catch (error) {
         console.error("Error fetching schema content:", error);
-        toast({
+        void toast({
           variant: "destructive",
           title: "Error",
           description: `Failed to load schema '${selectedSchemaName}'.`,
@@ -468,7 +494,7 @@ export default function CsvValidator() {
       }
     };
 
-    fetchSchemaContent();
+    void fetchSchemaContent(); // Add void to the call
   }, [
     selectedSchemaName,
     useUploadedSchema,
@@ -501,7 +527,7 @@ export default function CsvValidator() {
       setIsLoadingCsv(true);
       setCsvFileName(file.name);
       setOverallCsvStatus("pending"); // Reset status
-      toast({
+      void toast({
         title: "Parsing CSV",
         description: `Processing ${file.name}...`,
       });
@@ -570,7 +596,7 @@ export default function CsvValidator() {
 
   const handleSaveCsv = () => {
     if (!csvRawText.trim()) {
-      toast({
+      void toast({
         variant: "destructive",
         title: "Error",
         description: "No CSV data to save.",
@@ -591,19 +617,15 @@ export default function CsvValidator() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast({ title: "CSV Saved", description: `Saved data as ${filename}` });
+      void toast({ title: "CSV Saved", description: `Saved data as ${filename}` });
     } catch (error) {
       console.error("Error saving CSV:", error);
-      toast({
+      void toast({
         variant: "destructive",
         title: "Save Error",
         description: "Could not save CSV data.",
       });
     }
-  };
-
-  const handleCsvDownload = () => {
-    handleSaveCsv();
   };
 
   const handleUploadClick = () => {
@@ -634,18 +656,18 @@ export default function CsvValidator() {
           throw new Error("Invalid JSON content or missing $schema keyword.");
         }
 
-        setUploadedSchemaContent(parsedJson);
+        setUploadedSchemaContent(parsedJson as Record<string, unknown>);
         setUploadedSchemaName(file.name);
         setSelectedSchemaContent(text); // Update editor view
         setUseUploadedSchema(true);
         setOverallCsvStatus("pending");
-        toast({
+        void toast({
           title: "Schema Uploaded",
           description: `Using uploaded schema: ${file.name}`,
         });
       } catch (error: any) {
         console.error("Failed to parse uploaded JSON schema:", error);
-        toast({
+        void toast({
           variant: "destructive",
           title: "Schema Upload Error",
           description: `Failed to parse JSON file: ${error.message}`,
@@ -658,7 +680,7 @@ export default function CsvValidator() {
     };
     reader.onerror = (error) => {
       console.error("Failed to read uploaded file:", error);
-      toast({
+      void toast({
         variant: "destructive",
         title: "File Read Error",
         description: "Could not read the selected file.",
@@ -684,15 +706,15 @@ export default function CsvValidator() {
         const response = await fetch(`/api/schemas/${selectedSchemaName}`);
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
+        const data = await response.json() as SchemaContentResponse;
         setSelectedSchemaContent(data.content);
-        toast({
+        void toast({
           title: "Schema Cleared",
           description: `Restored schema: ${selectedSchemaName}`,
         });
       } catch (error) {
         console.error("Error re-fetching schema content:", error);
-        toast({
+        void toast({
           variant: "destructive",
           title: "Error",
           description: `Failed to restore schema '${selectedSchemaName}'.`,
@@ -702,71 +724,23 @@ export default function CsvValidator() {
       setIsLoadingSchemaContent(false);
     } else {
       setSelectedSchemaContent("// Select a schema or upload one."); // Handle case where no dropdown schema was selected
-      toast({ title: "Schema Cleared" });
+      void toast({ title: "Schema Cleared" });
     }
   }, [selectedSchemaName, toast]); // Add dependencies
-
-  const handleCopySchema = () => {
-    navigator.clipboard.writeText(selectedSchemaContent).then(
-      () => {
-        toast({
-          title: "Schema Copied!",
-          description: "Schema content copied to clipboard.",
-        });
-      },
-      (err) => {
-        toast({
-          title: "Copy Failed",
-          description: "Could not copy schema.",
-          variant: "destructive",
-        });
-      },
-    );
-  };
-
-  const handleClearCsv = useCallback(() => {
-    setCsvRawText("");
-    setCsvFileName("");
-    setOverallCsvStatus("pending"); // Reset status
-    // Reset the file input so the same file can be re-uploaded if needed
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    setTotalErrorCount(0);
-    setTotalWarningCount(0);
-    setVisibleResultCount(20); // Reset on clear
-    setShowSuccessOverlay(false);
-    setShowFailureOverlay(false);
-    toast({ title: "Info", description: "CSV data cleared." });
-  }, [toast]);
-
-  const getStatusIcon = (status: "valid" | "invalid" | "pending" | "error") => {
-    switch (status) {
-      case "valid":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "invalid":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case "error":
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case "pending":
-      default:
-        return <FileText className="h-5 w-5 text-gray-400" />;
-    }
-  };
 
   const handleCopyResults = () => {
     // Include warnings in copied results
     const resultsText = JSON.stringify(validationResults, null, 2);
     navigator.clipboard.writeText(resultsText).then(
       () => {
-        toast({
+        void toast({
           title: "Results Copied!",
           description:
             "Validation results (errors and warnings) copied to clipboard.",
         });
       },
-      (err) => {
-        toast({
+      (_err) => {
+        void toast({
           title: "Copy Failed",
           description: "Could not copy results.",
           variant: "destructive",
@@ -808,23 +782,22 @@ export default function CsvValidator() {
   // --- Debounced validation trigger ---
   const debouncedValidate = useMemo(() => {
     let timeout: NodeJS.Timeout | null = null;
-    return (csv: string, schema: any) => {
+    return (csv: string, schema: Record<string, unknown> | string) => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
         runWorkerValidation(csv, schema);
       }, 350);
     };
-  }, []);
+  }, [runWorkerValidation]);
 
   // --- Worker validation logic ---
   const runWorkerValidation = useCallback(
-    (csv: string, schema: any) => {
+    (csv: string, schema: Record<string, unknown> | string) => {
       setWorkerBusy(true);
-      setWorkerError(null);
       validationBatchRef.current = [];
       const worker = getWorker();
       workerRef.current = worker;
-      worker.onmessage = (event) => {
+      worker.onmessage = (event: MessageEvent<WorkerMessageData>) => {
         const { type, payload } = event.data;
         if (type === "resultsBatch") {
           validationBatchRef.current = [
@@ -837,11 +810,10 @@ export default function CsvValidator() {
           setTotalErrorCount(payload.totalErrors || 0);
           setTotalWarningCount(payload.totalWarnings || 0);
           setOverallCsvStatus(
-            (payload.totalErrors || 0) === 0 ? "valid" : "invalid",
+            payload.totalErrors === 0 ? "valid" : "invalid",
           );
         } else if (type === "error") {
           setWorkerBusy(false);
-          setWorkerError(payload.message);
           setOverallCsvStatus("error");
         }
       };
@@ -863,17 +835,15 @@ export default function CsvValidator() {
           dynamicTyping: false, // Always keep as string for schema validation
         });
         parsedCsv = parseResult.data;
-      } catch (e) {
+      } catch /* _e */ {
         setWorkerBusy(false);
-        setWorkerError("CSV parsing failed");
         setOverallCsvStatus("error");
         return;
       }
       try {
         parsedSchema = typeof schema === "string" ? JSON.parse(schema) : schema;
-      } catch (e) {
+      } catch /* _e */ {
         setWorkerBusy(false);
-        setWorkerError("Schema parsing failed");
         setOverallCsvStatus("error");
         return;
       }
@@ -887,18 +857,27 @@ export default function CsvValidator() {
 
   // --- CSV edit effect: debounce and use worker ---
   useEffect(() => {
-    if (!csvRawText.trim()) {
+    const effectiveSchema = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+
+    if (!csvRawText.trim() || !effectiveSchema) { // Add check for effectiveSchema
       setValidationResults([]);
       setOverallCsvStatus("pending");
       setTotalErrorCount(0);
       setTotalWarningCount(0);
       setVisibleResultCount(20);
+      // Optionally cancel any pending worker task if schema becomes null
+      if (workerRef.current && workerBusy) {
+        workerRef.current.terminate(); 
+        workerRef.current = null; // Clear ref
+        setWorkerBusy(false);
+      }
+      if (validationTimeout.current) clearTimeout(validationTimeout.current);
       return;
     }
     // Debounce and use worker on every csvRawText change
     debouncedValidate(
       csvRawText,
-      useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent,
+      effectiveSchema, // Pass the checked schema
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -906,15 +885,18 @@ export default function CsvValidator() {
     selectedSchemaContent,
     uploadedSchemaContent,
     useUploadedSchema,
+    debouncedValidate,
   ]);
 
   return (
     <div className="flex flex-col h-screen w-full">
       <header className="flex items-center justify-between px-6 py-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <img
+          <Image
             src="/lavitrine_logo.svg"
             alt="Company Logo"
+            width={64}
+            height={64}
             className="h-16 w-auto transition-all duration-300 dark:filter dark:invert dark:brightness-0 dark:contrast-100"
           />
           <span className="text-sm font-medium text-muted-foreground">|</span>
@@ -1012,7 +994,7 @@ export default function CsvValidator() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleClearUploadedSchema}
+                  onClick={() => void handleClearUploadedSchema()}
                   className="text-destructive hover:bg-destructive/10 border-destructive/50"
                 >
                   <X className="h-4 w-4 mr-2" /> Clear Uploaded
@@ -1033,7 +1015,7 @@ export default function CsvValidator() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleJsonPanel}
+                onClick={() => void toggleJsonPanel()}
                 disabled={
                   isLoadingSchemaContent ||
                   isFetchingMarkdown ||

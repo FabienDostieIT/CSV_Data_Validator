@@ -4,16 +4,16 @@ import * as JsonSchemaStaticDocsLib from "json-schema-static-docs"; // Use names
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { createRequire } from "module"; // Import createRequire
+// import { DocGenerator } from "json-schema-static-docs"; // Removed
 
 // Helper to resolve package paths
-const require = createRequire(import.meta.url);
+// const require = createRequire(import.meta.url);
 
 // Recursive copy function (fs.cp might not be available everywhere or handle nested dirs reliably)
 async function copyDirRecursive(src: string, dest: string) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
-  for (let entry of entries) {
+  for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
@@ -25,7 +25,7 @@ async function copyDirRecursive(src: string, dest: string) {
 }
 
 // Helper to create a temporary file
-async function writeTempSchemaFile(schema: any): Promise<string> {
+async function writeTempSchemaFile(schema: Record<string, unknown>): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "schema-"));
   const tempFilePath = path.join(tempDir, "schema.json");
   await fs.writeFile(tempFilePath, JSON.stringify(schema, null, 2));

@@ -3,9 +3,6 @@
 import React, { memo, useCallback } from "react";
 import {
   AlertTriangle,
-  CheckCircle,
-  Info,
-  AlertCircle as AlertIcon,
   XCircle,
   ChevronDown,
 } from "lucide-react";
@@ -15,83 +12,22 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
-import { ErrorObject } from "ajv";
-import * as jsonc from "jsonc-parser";
 import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
 
-// Add _range to ErrorObject type
-interface ErrorObjectWithRange extends ErrorObject {
-  _range?: {
-    // Define a structure similar to monaco.IRange if not globally available
-    startLineNumber: number;
-    startColumn: number;
-    endLineNumber: number;
-    endColumn: number;
-  };
-}
+// Remove unused interface extension
+// interface ErrorObjectWithRange extends ErrorObject { 
+//   _range?: { ... };
+// }
 
-// Error Item Component for SCHEMA errors
-interface SchemaErrorItemProps {
-  error: ErrorObjectWithRange; // Use extended type
-  // schemaData is no longer needed here
-  index: number; // Add index for unique key
-}
-
-const SchemaErrorItem: React.FC<SchemaErrorItemProps> = ({ error, index }) => {
-  const instancePath = error.instancePath || error.schemaPath || "";
-  const message = error.message || "Unknown error";
-  const schemaPath = error.schemaPath;
-  const keyword = error.keyword;
-
-  // Get location string directly from the _range property
-  let locationString = "L?:?"; // Default to placeholder
-  if (
-    error._range &&
-    typeof error._range.startLineNumber === "number" &&
-    typeof error._range.startColumn === "number"
-  ) {
-    locationString = `L${error._range.startLineNumber}:${error._range.startColumn}`;
-  }
-
-  return (
-    <div className="py-2 px-3 border-l-4 border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-900/20 rounded-r-md text-sm">
-      <pre className="whitespace-pre-wrap break-words font-sans">
-        {locationString && (
-          <span className="font-semibold text-orange-600 dark:text-orange-300">
-            {locationString}:
-          </span>
-        )}{" "}
-        <span className="font-semibold">{message}</span>
-        {/* Display instancePath if different from schemaPath */}
-        {instancePath && instancePath !== schemaPath && (
-          <span className="block mt-1 text-xs text-muted-foreground">
-            <span className="font-medium">Instance Path:</span> {instancePath}
-          </span>
-        )}
-        {schemaPath && (
-          <span className="block mt-1 text-xs text-muted-foreground">
-            <span className="font-medium">Schema Path:</span> {schemaPath}
-          </span>
-        )}
-        {keyword && (
-          <span className="block mt-1 text-xs text-muted-foreground">
-            <span className="font-medium">Keyword:</span> {keyword}
-          </span>
-        )}
-        {error.params && (
-          <details className="mt-1 text-xs text-muted-foreground">
-            <summary className="cursor-pointer font-medium">Params</summary>
-            <pre className="mt-1 text-xs bg-muted/50 p-1 rounded overflow-auto">
-              {JSON.stringify(error.params, null, 2)}
-            </pre>
-          </details>
-        )}
-      </pre>
-    </div>
-  );
-};
+// Error Item Component for SCHEMA errors - Removed previously
+// interface SchemaErrorItemProps { ... } 
+// const SchemaErrorItem: React.FC<SchemaErrorItemProps> = ({ error, _index }) => { ... };
 
 // --- ValidationResults Component (Updated) ---
 interface ValidationResultsProps {
@@ -114,7 +50,7 @@ const ValidationResults = memo(function ValidationResults({
   setScrollToLine,
 }: ValidationResultsProps) {
   const renderRow = useCallback(
-    (result: { row: number; errors: { property?: string; message: string }[]; warnings: { property?: string; message: string }[]; }, idx: number) => {
+    (result: { row: number; errors: { property?: string; message: string }[]; warnings: { property?: string; message: string }[]; }, _idx: number) => {
       const rowSeverity = result.errors.length > 0 ? "error" : "warning";
       const displayRowNumber = result.row;
       return (
@@ -172,34 +108,46 @@ const ValidationResults = memo(function ValidationResults({
               />
             </AccordionTrigger>
             <AccordionContent className="text-xs px-4 pt-2 pb-3 space-y-1 bg-muted/30 rounded-b">
-              {result.errors.map((err, index) => (
-                <div
-                  key={`err-${index}`}
-                  className="flex items-start text-red-600 dark:text-red-400"
-                >
-                  <XCircle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <span className="font-semibold">Error:</span>{" "}
-                    <span className="font-medium">{err.property || "N/A"}</span>{" "}
-                    - {err.message}
-                  </div>
-                </div>
-              ))}
-              {result.warnings.map((warn, index) => (
-                <div
-                  key={`warn-${index}`}
-                  className="flex items-start text-yellow-600 dark:text-yellow-400"
-                >
-                  <AlertTriangle className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <span className="font-semibold">Warning:</span>{" "}
-                    <span className="font-medium">
-                      {warn.property || "N/A"}
-                    </span>{" "}
-                    - {warn.message}
-                  </div>
-                </div>
-              ))}
+              <Table className="text-xs">
+                <TableBody>
+                  {result.errors.length > 0 && (
+                    <TableRow className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30">
+                      <TableCell
+                        colSpan={2}
+                        className="font-bold text-red-700 dark:text-red-300"
+                      >
+                        Errors:
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {result.errors.map((error, _errIdx) => (
+                    <TableRow
+                      key={`error-${result.row}-${_errIdx}`}
+                      className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
+                    >
+                      <TableCell className="font-mono pl-4 border-r border-red-200 dark:border-red-800 w-1/3">
+                        {error.property}
+                      </TableCell>
+                      <TableCell className="whitespace-pre-wrap">
+                        {error.message}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {result.warnings.map((warn, _warnIdx) => (
+                    <TableRow
+                      key={`warn-${result.row}-${_warnIdx}`}
+                      className="bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30"
+                    >
+                      <TableCell className="font-mono pl-4 border-r border-yellow-200 dark:border-yellow-800 w-1/3">
+                        {warn.property || "N/A"}
+                      </TableCell>
+                      <TableCell className="whitespace-pre-wrap">
+                        {warn.message}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
