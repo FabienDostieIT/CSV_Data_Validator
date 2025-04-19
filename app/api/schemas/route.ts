@@ -20,7 +20,7 @@ export async function GET() {
 
     console.log(`[API /api/schemas] Mapped schemas:`, schemas);
 
-    return NextResponse.json({ schemas: jsonFiles });
+    return NextResponse.json({ schemas: schemas });
   } catch (error: unknown) {
     console.error("[API /api/schemas] Error:", error);
     const message = error instanceof Error ? error.message : String(error);

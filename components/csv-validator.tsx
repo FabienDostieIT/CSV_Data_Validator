@@ -210,7 +210,7 @@ type WorkerMessageData =
   | WorkerMessageComplete 
   | WorkerMessageError;
 
-// --- Debounce Utility ---
+// --- Debounce Utility --- // ADDED
 function debounce<F extends (...args: any[]) => any>(
   func: F,
   waitFor: number,
@@ -880,54 +880,7 @@ export default function CsvValidator() {
     [memoizedSetValidationResults, toast],
   );
 
-  // --- Debounced validation trigger ---
-  const debouncedValidate = useMemo(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    return (csv: string, schema: Record<string, unknown> | string) => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        runWorkerValidation(csv, schema);
-      }, 350);
-    };
-  }, [runWorkerValidation]);
-
-  // --- CSV edit effect: debounce and use worker ---
-  useEffect(() => {
-    const effectiveSchema = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
-
-    if (!csvRawText.trim() || !effectiveSchema) { // Combined checks
-      setValidationResults([]);
-      setOverallCsvStatus("pending");
-      setTotalErrorCount(0);
-      setTotalWarningCount(0);
-      setVisibleResultCount(20);
-      // Optionally cancel any pending worker task if schema becomes null
-      if (workerRef.current && workerBusy) {
-        workerRef.current.terminate(); 
-        workerRef.current = null; // Clear ref
-        setWorkerBusy(false);
-      }
-      if (validationTimeout.current) clearTimeout(validationTimeout.current);
-      return;
-    }
-    // Debounced and use worker on every csvRawText change
-    // Provide default empty object to satisfy type checker, although the if check prevents null case
-    debouncedValidate(
-        csvRawText,
-        effectiveSchema ?? {},
-    );
-    
-  }, [
-    csvRawText,
-    selectedSchemaContent,
-    uploadedSchemaContent,
-    useUploadedSchema,
-    debouncedValidate, // Keep debouncedValidate here
-    workerBusy // ADD workerBusy to dependency array
-    // No need to include effectiveSchema directly, its parts are dependencies
-  ]);
-
-  // --- Manual Validation Trigger --- //
+  // --- Debounced validation trigger --- // RENAMED & SIMPLIFIED
   const triggerValidation = useCallback(async () => {
     // Determine the schema to use
     const schemaToUse = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
@@ -936,18 +889,21 @@ export default function CsvValidator() {
       console.warn("No schema selected for validation");
       return;
     }
+    
+    // Mark editor as clean now that validation is explicitly triggered
+    setIsEditorDirty(false); 
 
     // Call the worker validation function
     runWorkerValidation(csvRawText, schemaToUse);
   }, [csvRawText, selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, runWorkerValidation]);
 
-  // --- Debounced Validation --- //
+  // --- Debounced Validation --- // ADDED FOR AUTO-VALIDATION ON EDIT
   // Use useRef to keep the debounced function stable across renders
   const debouncedValidationRef = useRef(
     debounce(triggerValidation, 750) // Debounce validation by 750ms
   );
 
-  // --- CSV Content Change Handler --- //
+  // --- CSV Content Change Handler --- // UPDATED FOR DEBOUNCING
   const handleCsvContentChange = useCallback(
     (value: string | undefined) => {
       const newCsvText = value || "";
@@ -1121,30 +1077,13 @@ export default function CsvValidator() {
         <div className="flex-grow"></div>
 
         <Button
-          onClick={() => {
-            const effectiveSchema = useUploadedSchema
-              ? uploadedSchemaContent
-              : selectedSchemaContent;
-            // Only call validate if effectiveSchema is not null
-            if (effectiveSchema) {
-              debouncedValidate(
-                csvRawText,
-                effectiveSchema, // Pass the non-null schema
-              );
-            } else {
-              // Optional: Show a toast or log an error if schema is missing
-              toast({
-                title: "Schema Missing",
-                description: "Please select or upload a schema before validating.",
-                variant: "destructive",
-              });
-            }
-          }}
+          onClick={triggerValidation} // Use direct trigger on button click
           disabled={
             workerBusy ||
             !csvRawText.trim() ||
             (!selectedSchemaName && !useUploadedSchema) ||
-            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent)
+            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent) ||
+            !isEditorDirty // Disable if editor hasn't changed since last validation
           }
           size="sm"
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"

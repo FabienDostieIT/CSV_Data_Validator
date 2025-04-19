@@ -127,24 +127,34 @@ const ValidationResults = memo(function ValidationResults({
                       key={`error-${result.row}-${_errIdx}`}
                       className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
                     >
-                      <TableCell className="font-mono pl-4 border-r border-red-200 dark:border-red-800 w-1/3">
-                        {error.property}
+                      <TableCell className="w-[150px] font-medium text-red-800 dark:text-red-200">
+                        {error.property || "N/A"}
                       </TableCell>
-                      <TableCell className="whitespace-pre-wrap">
+                      <TableCell className="text-red-800 dark:text-red-200">
                         {error.message}
                       </TableCell>
                     </TableRow>
                   ))}
-                  {result.warnings.map((warn, _warnIdx) => (
+                  {result.warnings.length > 0 && (
+                    <TableRow className="bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30">
+                      <TableCell
+                        colSpan={2}
+                        className="font-bold text-yellow-700 dark:text-yellow-300"
+                      >
+                        Warnings:
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {result.warnings.map((warning, _warnIdx) => (
                     <TableRow
-                      key={`warn-${result.row}-${_warnIdx}`}
+                      key={`warning-${result.row}-${_warnIdx}`}
                       className="bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30"
                     >
-                      <TableCell className="font-mono pl-4 border-r border-yellow-200 dark:border-yellow-800 w-1/3">
-                        {warn.property || "N/A"}
+                      <TableCell className="w-[150px] font-medium text-yellow-800 dark:text-yellow-200">
+                        {warning.property || "N/A"}
                       </TableCell>
-                      <TableCell className="whitespace-pre-wrap">
-                        {warn.message}
+                      <TableCell className="text-yellow-800 dark:text-yellow-200">
+                        {warning.message}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -155,15 +165,14 @@ const ValidationResults = memo(function ValidationResults({
         </Accordion>
       );
     },
-    [
-      openAccordionValue,
-      setOpenAccordionValue,
-      setHighlightedCsvLine,
-      setScrollToLine,
-    ],
+    [openAccordionValue, setOpenAccordionValue, setHighlightedCsvLine, setScrollToLine], // Dependencies for useCallback
   );
 
-  return <>{results.map(renderRow)}</>;
+  return (
+    <>
+      {results.map((result, index) => renderRow(result, index))} // Ensure index is passed if needed by renderRow
+    </>
+  );
 });
 
 export default ValidationResults;

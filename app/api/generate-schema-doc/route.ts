@@ -4,6 +4,7 @@ import * as JsonSchemaStaticDocsLib from "json-schema-static-docs"; // Use names
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { createRequire } from "module"; // Import createRequire
 import prettier from "prettier";
 import parserTypescript from "prettier/parser-typescript";
 // import { DocGenerator } from "json-schema-static-docs"; // Removed

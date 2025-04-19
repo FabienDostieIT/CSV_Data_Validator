@@ -50,9 +50,9 @@ jobs:
       - name: Build project
         run: pnpm build
 
-      # # Add a step to run ESLint checks
-      # - name: Run ESLint
-      #   run: pnpm eslint . --ext .js,.jsx,.ts,.tsx
+      # Add a step to run ESLint checks
+      - name: Run ESLint
+        run: pnpm eslint . --ext .js,.jsx,.ts,.tsx
 
       # Perform CodeQL Analysis
       - name: Perform CodeQL Analysis
