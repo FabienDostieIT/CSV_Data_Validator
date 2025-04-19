@@ -195,15 +195,19 @@ export async function POST(request: Request) {
     const LibraryModule: JsonSchemaStaticDocsModule = JsonSchemaStaticDocsLib; 
     let Constructor: JsonSchemaStaticDocsConstructor | null = null;
 
-    // Use the type guard
+    // Use the type guard first for the direct constructor case
     if (isDocConstructor(LibraryModule)) {
          Constructor = LibraryModule;
-    } else if (LibraryModule && typeof LibraryModule === 'object' && LibraryModule.default && isDocConstructor(LibraryModule.default)) {
-        Constructor = LibraryModule.default;
-    } else if (LibraryModule && typeof LibraryModule === 'object' && LibraryModule.JsonSchemaStaticDocs && isDocConstructor(LibraryModule.JsonSchemaStaticDocs)) {
-       Constructor = LibraryModule.JsonSchemaStaticDocs;
-    } else if (LibraryModule && typeof LibraryModule === 'object' && LibraryModule.DocGenerator && isDocConstructor(LibraryModule.DocGenerator)) {
-       Constructor = LibraryModule.DocGenerator;
+    // Check if it's an object before checking properties
+    } else if (LibraryModule && typeof LibraryModule === 'object') { 
+        // Use 'in' operator for safer property checking
+        if ('default' in LibraryModule && LibraryModule.default && isDocConstructor(LibraryModule.default)) {
+            Constructor = LibraryModule.default;
+        } else if ('JsonSchemaStaticDocs' in LibraryModule && LibraryModule.JsonSchemaStaticDocs && isDocConstructor(LibraryModule.JsonSchemaStaticDocs)) {
+           Constructor = LibraryModule.JsonSchemaStaticDocs;
+        } else if ('DocGenerator' in LibraryModule && LibraryModule.DocGenerator && isDocConstructor(LibraryModule.DocGenerator)) {
+           Constructor = LibraryModule.DocGenerator;
+        }
     }
 
     if (!Constructor) {
