@@ -22,6 +22,14 @@ function genId() {
   return count.toString();
 }
 
+// Define the action types constant
+const actionTypes = {
+  ADD_TOAST: "ADD_TOAST",
+  UPDATE_TOAST: "UPDATE_TOAST",
+  DISMISS_TOAST: "DISMISS_TOAST",
+  REMOVE_TOAST: "REMOVE_TOAST",
+} as const;
+
 type ActionType = typeof actionTypes;
 
 type Action =
@@ -58,7 +66,7 @@ const addToRemoveQueue = (toastId: string) => {
   const timeout = setTimeout(() => {
     toastTimeouts.delete(idAsString);
     dispatch({
-      type: "REMOVE_TOAST",
+      type: actionTypes.REMOVE_TOAST,
       toastId: idAsString,
     });
   }, TOAST_REMOVE_DELAY);
@@ -68,14 +76,14 @@ const addToRemoveQueue = (toastId: string) => {
 
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case "ADD_TOAST": {
+    case actionTypes.ADD_TOAST: {
       const newToasts: ToasterToast[] = [action.toast, ...state.toasts].slice(0, TOAST_LIMIT);
       return {
         ...state,
         toasts: newToasts,
       };
     }
-    case "UPDATE_TOAST": {
+    case actionTypes.UPDATE_TOAST: {
       const updatedToasts = state.toasts.map((t): ToasterToast => 
         t.id === action.toast.id ? ({ ...t, ...action.toast } as ToasterToast) : t 
       );
@@ -84,7 +92,7 @@ const reducer = (state: State, action: Action): State => {
         toasts: updatedToasts,
       };
     }
-    case "DISMISS_TOAST": {
+    case actionTypes.DISMISS_TOAST: {
       const { toastId } = action;
 
       if (toastId !== undefined) {
@@ -112,7 +120,7 @@ const reducer = (state: State, action: Action): State => {
         };
       }
     }
-    case "REMOVE_TOAST": {
+    case actionTypes.REMOVE_TOAST: {
       if (action.toastId === undefined) {
         return {
           ...state,
@@ -128,6 +136,9 @@ const reducer = (state: State, action: Action): State => {
       };
     }
     default:
+        // Check if the action type is one of the known types
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
+        const _exhaustiveCheck: never = action.type;
         return state; 
   }
 };
@@ -150,13 +161,13 @@ function toast({ ...props }: Toast) {
 
   const update = (props: ToasterToast) =>
     dispatch({
-      type: "UPDATE_TOAST",
+      type: actionTypes.UPDATE_TOAST,
       toast: { ...props, id },
     });
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
 
   dispatch({
-    type: "ADD_TOAST",
+    type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
       id,
@@ -195,7 +206,7 @@ function useToast(): UseToastReturn {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId?: string) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
   };
 }
 
