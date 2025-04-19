@@ -116,7 +116,7 @@ interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | stri
   hideIndicator?: boolean;
   labelKey?: string;
   labelFormatter?: (label: string, payload: Payload<number | string, string>[]) => React.ReactNode;
-  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: ChartTooltipItemPayload | undefined) => React.ReactNode;
+  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: Payload<number | string, string>[]) => React.ReactNode;
   color?: string;
   className?: string;
 }
@@ -179,13 +179,13 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
           const itemColor = typeof item.color === 'string' ? item.color : undefined;
           const indicatorColor: string = color || itemColor || payloadFill || "hsl(var(--primary))";
           
-          let formatterPayload: ChartTooltipItemPayload | undefined = undefined;
+          let itemSpecificPayload: ChartTooltipItemPayload | undefined = undefined; 
           if (
             typeof item.payload === 'object' && 
             item.payload !== null && 
             !(item.payload instanceof Error)
           ) {
-            formatterPayload = item.payload as ChartTooltipItemPayload;
+            itemSpecificPayload = item.payload as ChartTooltipItemPayload; 
           }
 
           const safeValue = (typeof item.value === 'number' || typeof item.value === 'string') ? item.value : 0;
@@ -199,8 +199,8 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
                 indicator === "dot" && "items-center",
               )}
             >
-              {formatter && item.name ? (
-                formatter(safeValue, safeName, item, index, formatterPayload)
+              {formatter && item.name && payload ? ( 
+                formatter(safeValue, safeName, item, index, payload)
               ) : (
                 <>
                   {itemConfig.icon ? (
