@@ -4,15 +4,17 @@ import path from "path";
 import jsonc from "jsonc";
 
 // Define the expected structure of the context parameter
-interface GetContext {
-  params: {
-    name: string;
-  };
-}
+// Remove the custom GetContext interface
+// interface GetContext {
+//   params: {
+//     name: string;
+//   };
+// }
 
 export async function GET(
   _request: Request, // Prefix with _ if not used
-  { params }: GetContext, // Use the defined interface
+  // Use the standard Next.js context typing for route parameters
+  { params }: { params: { name: string } }, 
 ) {
   console.log("[API /api/schemas/[name]] Waiting for params...");
 
