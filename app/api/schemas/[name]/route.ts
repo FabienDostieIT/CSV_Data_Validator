@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import jsonc from "jsonc";
 
 export async function GET(
   request: Request,
@@ -52,19 +53,18 @@ export async function GET(
 
     const fileContent = await fs.readFile(filePath, "utf-8");
 
-    // Optionally validate if it's valid JSON before returning
+    // Parse JSONC (JSON with comments) for validation
     try {
-      JSON.parse(fileContent);
-    } catch (parseError) {
-      console.error(
-        `[API /api/schemas/${name}] File is not valid JSON: ${filePath}`,
-      );
+      jsonc.parse(fileContent); // Validate syntax
+    } catch (parseError: any) {
+      // Handle JSON parsing errors
+      console.error(`Error parsing schema file: ${name}`);
       return NextResponse.json(
         { error: "Schema file is not valid JSON" },
         { status: 500 },
       );
     }
-
+    // Return the original content if parsing succeeded
     return NextResponse.json({ content: fileContent });
   } catch (error: any) {
     console.error(
