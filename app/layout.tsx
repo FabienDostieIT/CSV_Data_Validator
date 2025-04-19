@@ -15,10 +15,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="dark">
       <body className={inter.className}>
         <ThemeProvider
-          attribute="class"
           defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
         >
           {children}
           <Toaster />

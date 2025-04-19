@@ -50,7 +50,9 @@ const ValidationResults = memo(function ValidationResults({
   setScrollToLine,
 }: ValidationResultsProps) {
   const renderRow = useCallback(
-    (result: { row: number; errors: { property?: string; message: string }[]; warnings: { property?: string; message: string }[]; }, _idx: number) => {
+    (result: { row: number; errors: { property?: string; message: string }[]; warnings: { property?: string; message: string }[]; },
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     _idx: number) => {
       const rowSeverity = result.errors.length > 0 ? "error" : "warning";
       const displayRowNumber = result.row;
       return (

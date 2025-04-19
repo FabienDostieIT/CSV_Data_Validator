@@ -2,18 +2,31 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
-export function GET() {
+export async function GET() {
   try {
     const schemasDir = path.join(process.cwd(), "schemas", "v1");
-    const files = fs.readdirSync(schemasDir).filter((f) => f.endsWith(".json"));
-    const schemas = files.map((filename) => ({
+    console.log(`[API /api/schemas] Reading directory: ${schemasDir}`);
+
+    const allFiles = await fs.readdir(schemasDir);
+    console.log(`[API /api/schemas] Found files: ${allFiles.join(', ')}`);
+
+    const jsonFiles = allFiles.filter((f) => typeof f === 'string' && f.endsWith(".json"));
+    console.log(`[API /api/schemas] Filtered JSON files: ${jsonFiles.join(', ')}`);
+
+    const schemas = jsonFiles.map((filename) => ({
       name: filename.replace(/\.json$/, ""),
       filename,
-      path: `/schemas/v1/${filename}`,
     }));
-    return NextResponse.json({ schemas });
-  } catch (error) {
+
+    console.log(`[API /api/schemas] Mapped schemas:`, schemas);
+
+    return NextResponse.json({ schemas: jsonFiles });
+  } catch (error: unknown) {
+    console.error("[API /api/schemas] Error:", error);
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to retrieve schemas", details: message },
+      { status: 500 },
+    );
   }
 }

@@ -29,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import CodeEditor from "@/components/code-editor";
 import ThemeToggle from "@/components/theme-toggle";
 import {
@@ -69,13 +69,8 @@ const getWorker = (() => {
 })();
 
 // --- Schema cache ---
-interface SchemaContent {
-  filename?: string;
-  // Add other properties as needed
-}
-
 const schemaListCache: { list?: string[] } = {};
-const schemaContentCache: Record<string, SchemaContent> = {};
+const schemaContentCache: Record<string, Record<string, unknown> | string> = {};
 
 // --- Custom Markdown Components for Styling ---
 // const CustomH1 = ({ _node, children, ...props }: any) => (
@@ -118,51 +113,43 @@ const schemaContentCache: Record<string, SchemaContent> = {};
 // );
 
 // --- Modern Custom Markdown Components for Schema Doc Styling ---
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaH1 = ({ _node, ...props }: any) => (
+const SchemaH1 = ({ ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
   <h1 className="text-3xl font-extrabold mt-8 mb-4 flex items-center gap-2 text-gradient-to-r from-blue-600 to-purple-600">
     <ClipboardList className="h-6 w-6 text-blue-500" /> {props.children}
   </h1>
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaH2 = ({ _node, ...props }: any) => (
+const SchemaH2 = ({ ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
   <h2 className="text-xl font-bold mt-6 mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300">
     <Key className="h-5 w-5 text-purple-500" /> {props.children}
   </h2>
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaTable = ({ _node, ...props }: any) => (
+const SchemaTable = ({ ...props }: React.HTMLAttributes<HTMLTableElement>) => (
   <table className="w-full my-3 border-separate border-spacing-y-1 text-sm bg-white/80 dark:bg-zinc-900/40 rounded-xl overflow-hidden shadow">
     {props.children}
   </table>
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaTh = ({ _node, ...props }: any) => (
+const SchemaTh = ({ ...props }: React.HTMLAttributes<HTMLTableCellElement>) => (
   <th
     className="p-2 text-left font-semibold bg-blue-50 dark:bg-zinc-800 text-blue-900 dark:text-blue-200"
     {...props}
   />
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaTd = ({ _node, ...props }: any) => (
+const SchemaTd = ({ ...props }: React.HTMLAttributes<HTMLTableCellElement>) => (
   <td className="p-2 align-top" {...props} />
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaBlockquote = ({ _node, ...props }: any) => (
+const SchemaBlockquote = ({ ...props }: React.HTMLAttributes<HTMLQuoteElement>) => (
   <blockquote className="border-l-4 border-blue-400 bg-blue-50/60 dark:bg-zinc-800/40 p-3 my-3 rounded-md text-blue-900 dark:text-blue-200 flex items-start gap-2">
     <Info className="h-5 w-5 text-blue-400 mt-0.5" />
     <span>{props.children}</span>
   </blockquote>
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaCode = ({ _node, ...props }: any) => (
+const SchemaCode = ({ ...props }: React.HTMLAttributes<HTMLElement>) => (
   <code
     className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-sm font-mono text-blue-700 dark:text-blue-200"
     {...props}
   />
 );
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SchemaP = ({ _node, ...props }: any) => (
+const SchemaP = ({ ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
   <p
     className="mb-2 leading-relaxed text-zinc-700 dark:text-zinc-200"
     {...props}
@@ -190,11 +177,6 @@ interface RowValidationResults {
   row: number;
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
-}
-
-// Interface for the schema documentation API response
-interface SchemaDocResponse {
-  markdown: string;
 }
 
 // Interface for the schema list API response
@@ -279,6 +261,7 @@ export default function CsvValidator() {
     undefined,
   );
   const [workerBusy, setWorkerBusy] = useState(false);
+  const [lastRenderedSchemaName, setLastRenderedSchemaName] = useState<string | null>(null);
 
   // Uncomment Refs
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
@@ -324,64 +307,88 @@ export default function CsvValidator() {
   }, [validationResults, visibleResultCount]);
 
   // --- Function to Fetch and Render Schema Docs ---
-  const fetchAndRenderSchemaDoc = useCallback(
-    async (schemaOverride?: Record<string, unknown>) => {
-      // Determine schema: use override if provided, otherwise use state
-      const schemaToUse = schemaOverride
-        ? schemaOverride
-        : useUploadedSchema
-          ? uploadedSchemaContent
-          : selectedSchemaContent;
+  const fetchAndRenderSchemaDoc = useCallback(async () => {
+    const schemaToRender = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
 
-      // Proceed only if we have a schema to work with
-      if (
-        !schemaToUse ||
-        (typeof schemaToUse === "string" && !schemaToUse.trim())
-      ) {
-        setSchemaMarkdown(""); // Clear if no schema
-        setIsFetchingMarkdown(false); // Finish loading
+    if (!schemaToRender || typeof schemaToRender === 'string') {
+      setSchemaMarkdown(
+        schemaToRender === "" ? "_Select or upload a schema to view documentation._" : "_Invalid schema format for documentation._"
+      );
+      // Set last rendered even if invalid, so we don't retry constantly
+      setLastRenderedSchemaName(useUploadedSchema ? uploadedSchemaName : selectedSchemaName);
+      return;
+    }
+
+    const currentSourceName = useUploadedSchema ? uploadedSchemaName : selectedSchemaName;
+    // Avoid re-rendering if the same schema (by name) is already displayed
+    if (currentSourceName && currentSourceName === lastRenderedSchemaName) {
+        console.log(`Skipping doc render for already displayed schema: ${currentSourceName}`);
         return;
-      }
+    }
 
-      setIsFetchingMarkdown(true); // Indicate loading
-      setSchemaMarkdown(""); // Clear previous content
+    setIsFetchingMarkdown(true);
+    setSchemaMarkdown("Loading documentation..."); // Placeholder
 
-      try {
-        // Parse the schema if it's a string (from pre-loaded), otherwise use the object (uploaded)
-        const schemaObject =
-          typeof schemaToUse === "string"
-            ? JSON.parse(schemaToUse)
-            : schemaToUse;
+    try {
+      // Fetch schema doc
+      const response = await fetch("/api/generate-schema-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schema: schemaToRender } as Record<string, unknown>),
+      });
 
-        const response = await fetch("/api/generate-schema-doc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schema: schemaObject }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})); // Try to get error details
-          throw new Error(
-            `Failed to fetch schema documentation: ${response.statusText} ${errorData.details ? `(${errorData.details})` : ""}`,
-          );
+      if (!response.ok) {
+        let errorDetails = `Failed to fetch schema documentation (${response.status})`;
+        try {
+          const errorData = await response.json() as Record<string, unknown>; // Attempt to parse error
+          // Type guard for safer access
+          if (errorData && typeof errorData === 'object') {
+              if ('details' in errorData && errorData.details) {
+                  // Safely stringify details if it exists
+                  errorDetails = JSON.stringify(errorData.details); 
+              } else if ('error' in errorData && errorData.error) {
+                  // Handle Error object or stringify other types
+                  errorDetails = errorData.error instanceof Error ? errorData.error.message : JSON.stringify(errorData.error); // Use JSON.stringify for objects
+              }
+          }
+        } catch /* Removed parseError */ {
+          console.warn("Could not parse error response from generate-schema-doc");
+          errorDetails += `: ${response.statusText}`; // Fallback to status text
         }
-
-        const result = await response.json() as SchemaDocResponse;
-        setSchemaMarkdown(result.markdown);
-      } catch (error: any) {
-        console.error("Failed to fetch/generate schema docs:", error);
-        void toast({
-          title: "Error",
-          description: `Could not generate schema documentation: ${error.message}`,
-          variant: "destructive",
-        });
-        setSchemaMarkdown("# Error generating documentation"); // Show error in panel
-      } finally {
-        setIsFetchingMarkdown(false); // Finish loading
+        throw new Error(errorDetails);
       }
-    },
-    [selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, toast],
-  ); // Dependencies for fetching (toast added)
+
+      // Type the expected successful response
+      const data = await response.json() as { markdown: string }; // ADDED CAST
+      setSchemaMarkdown(data.markdown);
+      setLastRenderedSchemaName(currentSourceName); // Update last rendered name
+
+      // Update/dismiss the loading toast on success
+      toast({ title: "Documentation Ready", description: "Schema documentation loaded successfully.", duration: 3000 });
+
+    } catch (error: unknown) { // Use unknown for caught error
+      console.error("Error fetching/rendering schema doc:", error);
+      // Use type guard to get message
+      const message = error instanceof Error ? error.message : "Could not load documentation";
+      setSchemaMarkdown(`# Error loading documentation\n\n\`\`\`\n${message}\n\`\`\``); // Display error in markdown panel
+      setLastRenderedSchemaName(null); // Clear last rendered on error so it can be retried
+
+      // Update/dismiss the loading toast on error
+      toast({ title: "Documentation Error", description: message, variant: "destructive", duration: 10000 });
+
+    } finally {
+      setIsFetchingMarkdown(false);
+    }
+  }, [
+    selectedSchemaContent,
+    uploadedSchemaContent,
+    useUploadedSchema,
+    toast,
+    uploadedSchemaName,
+    selectedSchemaName,
+    lastRenderedSchemaName,
+    setLastRenderedSchemaName,
+  ]);
 
   // --- Effect to fetch schema list on mount --- // Keep uncommented for now
   useEffect(() => {
@@ -397,34 +404,31 @@ export default function CsvValidator() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json() as SchemaListResponse;
-        if (data.schemas && Array.isArray(data.schemas)) {
-          schemaListCache.list = data.schemas;
-          setAvailableSchemaNames(data.schemas);
-          // Select the first schema's filename by default if list is not empty
-          if (data.schemas.length > 0) {
-            const first = data.schemas[0];
-            setSelectedSchemaName(first);
-          } else {
-            setSelectedSchemaContent("// No schemas found in directory.");
-          }
-        } else {
-          throw new Error("Invalid response format from /api/schemas");
+        const data = (await response.json()) as SchemaListResponse;
+        const sortedSchemas = data.schemas.sort(); // Sort alphabetically
+        schemaListCache.list = sortedSchemas; // Cache the sorted list
+        setAvailableSchemaNames(sortedSchemas);
+
+        // Automatically select the first schema if available
+        if (sortedSchemas.length > 0 && !selectedSchemaName) {
+          setSelectedSchemaName(sortedSchemas[0]);
         }
-      } catch (error) {
-        console.error("Failed to fetch schema list:", error);
+      } catch (error: unknown) {
+        console.error("Error fetching schema list:", error);
         void toast({
           title: "Error",
-          description: "Could not load schema list.",
+          description:
+            "Could not fetch the list of available schemas. Please check the API or try again later.",
           variant: "destructive",
         });
-        setSelectedSchemaContent("// Error loading schema list.");
       } finally {
         setIsLoadingSchemaList(false);
       }
     };
-    void fetchSchemaList(); // Add void to the call
-  }, [toast]); // Add toast dependency
+
+    void fetchSchemaList();
+    // Add dependencies here if needed, e.g., if fetchSchemaList depends on props or other state
+  }, [toast, selectedSchemaName]); // Added toast and selectedSchemaName as dependencies
 
   // --- Effect to fetch schema content when selection changes --- // Uncomment
   useEffect(() => {
@@ -446,7 +450,7 @@ export default function CsvValidator() {
           setSelectedSchemaContent(schemaContentCache[selectedSchemaName]);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            await fetchAndRenderSchemaDoc(schemaContentCache[selectedSchemaName]);
+            await fetchAndRenderSchemaDoc();
           }
           return;
         }
@@ -461,7 +465,7 @@ export default function CsvValidator() {
           setSelectedSchemaContent(newSchemaContent);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            await fetchAndRenderSchemaDoc(newSchemaContent);
+            await fetchAndRenderSchemaDoc();
           }
           return;
         }
@@ -474,7 +478,7 @@ export default function CsvValidator() {
           setSelectedSchemaContent(newSchemaContent);
           setIsLoadingSchemaContent(false);
           if (isJsonPanelVisible) {
-            await fetchAndRenderSchemaDoc(uploadedSchemaContent);
+            await fetchAndRenderSchemaDoc();
           }
           return;
         }
@@ -494,7 +498,7 @@ export default function CsvValidator() {
       }
     };
 
-    void fetchSchemaContent(); // Add void to the call
+    void fetchSchemaContent();
   }, [
     selectedSchemaName,
     useUploadedSchema,
@@ -537,7 +541,7 @@ export default function CsvValidator() {
         const text = e.target?.result as string;
         setCsvRawText(text);
 
-        Papa.parse<Record<string, any>>(text, {
+        Papa.parse<Record<string, unknown>>(text, {
           header: true,
           skipEmptyLines: true,
           dynamicTyping: true, // changed from false
@@ -646,17 +650,18 @@ export default function CsvValidator() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       try {
-        const parsedJson = JSON.parse(text);
+        const parsedJson = JSON.parse(text) as Record<string, unknown>;
         // Basic check if it looks like a schema
         if (
           typeof parsedJson !== "object" ||
           parsedJson === null ||
-          !parsedJson.$schema
+          !("$schema" in parsedJson) ||
+          typeof parsedJson.$schema !== 'string'
         ) {
-          throw new Error("Invalid JSON content or missing $schema keyword.");
+          throw new Error("Invalid JSON content or missing/invalid $schema keyword.");
         }
 
-        setUploadedSchemaContent(parsedJson as Record<string, unknown>);
+        setUploadedSchemaContent(parsedJson);
         setUploadedSchemaName(file.name);
         setSelectedSchemaContent(text); // Update editor view
         setUseUploadedSchema(true);
@@ -665,12 +670,13 @@ export default function CsvValidator() {
           title: "Schema Uploaded",
           description: `Using uploaded schema: ${file.name}`,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Failed to parse uploaded JSON schema:", error);
+        const message = error instanceof Error ? error.message : "Unknown error parsing JSON";
         void toast({
           variant: "destructive",
           title: "Schema Upload Error",
-          description: `Failed to parse JSON file: ${error.message}`,
+          description: `Failed to parse JSON file: ${message}`,
         });
         // Reset state if upload fails
         setUploadedSchemaContent(null);
@@ -739,6 +745,7 @@ export default function CsvValidator() {
             "Validation results (errors and warnings) copied to clipboard.",
         });
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (_err) => {
         void toast({
           title: "Copy Failed",
@@ -765,30 +772,33 @@ export default function CsvValidator() {
     }
   };
 
-  useEffect(() => {
-    if (validationResults.length > 0 && visibleResultCount < 20) {
-      setVisibleResultCount(
-        Math.max(10, Math.min(20, validationResults.length)),
-      );
-    }
-  }, [validationResults]);
+  // --- Handler to clear CSV data --- // ADDED
+  const handleClearCsv = useCallback(() => {
+      setCsvRawText("");
+      setCsvFileName("");
+      setValidationResults([]);
+      setTotalErrorCount(0);
+      setTotalWarningCount(0);
+      setOverallCsvStatus("pending");
+      setHighlightedCsvLine(undefined);
+      toast({ title: "CSV Cleared", description: "Input data has been removed." });
+  }, [
+    // Add setters as dependencies if needed, e.g. setCsvRawText
+    toast, 
+    setCsvRawText, 
+    setCsvFileName, 
+    setValidationResults, 
+    setTotalErrorCount, 
+    setTotalWarningCount, 
+    setOverallCsvStatus, 
+    setHighlightedCsvLine
+  ]);
 
   // --- Memoized expensive handlers ---
   const memoizedSetValidationResults = useCallback(
     (results: RowValidationResults[]) => setValidationResults(results),
     [],
   );
-
-  // --- Debounced validation trigger ---
-  const debouncedValidate = useMemo(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    return (csv: string, schema: Record<string, unknown> | string) => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        runWorkerValidation(csv, schema);
-      }, 350);
-    };
-  }, [runWorkerValidation]);
 
   // --- Worker validation logic ---
   const runWorkerValidation = useCallback(
@@ -818,8 +828,8 @@ export default function CsvValidator() {
         }
       };
       // Parse CSV and schema before sending to worker
-      let parsedCsv: any[] = [];
-      let parsedSchema: any = undefined;
+      let parsedCsv: Record<string, unknown>[] = [];
+      let parsedSchema: Record<string, unknown> | undefined = undefined;
       let firstDataRowLine = 2; // Default: header is line 1, first data row is line 2
       try {
         // Count lines before header (to support CSVs that start at arbitrary lines)
@@ -829,7 +839,7 @@ export default function CsvValidator() {
         );
         if (headerLineIdx === -1) headerLineIdx = 0;
         firstDataRowLine = headerLineIdx + 2; // header line + 1 for first data row (1-based)
-        const parseResult = Papa.parse(csv, {
+        const parseResult = Papa.parse<Record<string, unknown>>(csv, {
           header: true,
           skipEmptyLines: true,
           dynamicTyping: false, // Always keep as string for schema validation
@@ -841,8 +851,11 @@ export default function CsvValidator() {
         return;
       }
       try {
-        parsedSchema = typeof schema === "string" ? JSON.parse(schema) : schema;
-      } catch /* _e */ {
+        parsedSchema = typeof schema === "string" ? JSON.parse(schema) as Record<string, unknown> : schema;
+      } catch (e: unknown) {
+        console.error("Schema parsing error before sending to worker:", e);
+        const message = e instanceof Error ? e.message : "Invalid schema format";
+        toast({ title: "Schema Error", description: message, variant: "destructive" });
         setWorkerBusy(false);
         setOverallCsvStatus("error");
         return;
@@ -852,14 +865,25 @@ export default function CsvValidator() {
         payload: { csvData: parsedCsv, schema: parsedSchema, firstDataRowLine },
       });
     },
-    [memoizedSetValidationResults],
+    [memoizedSetValidationResults, toast],
   );
+
+  // --- Debounced validation trigger ---
+  const debouncedValidate = useMemo(() => {
+    let timeout: NodeJS.Timeout | null = null;
+    return (csv: string, schema: Record<string, unknown> | string) => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        runWorkerValidation(csv, schema);
+      }, 350);
+    };
+  }, [runWorkerValidation]);
 
   // --- CSV edit effect: debounce and use worker ---
   useEffect(() => {
     const effectiveSchema = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
 
-    if (!csvRawText.trim() || !effectiveSchema) { // Add check for effectiveSchema
+    if (!csvRawText.trim() || !effectiveSchema) { // Combined checks
       setValidationResults([]);
       setOverallCsvStatus("pending");
       setTotalErrorCount(0);
@@ -874,18 +898,21 @@ export default function CsvValidator() {
       if (validationTimeout.current) clearTimeout(validationTimeout.current);
       return;
     }
-    // Debounce and use worker on every csvRawText change
+    // Debounced and use worker on every csvRawText change
+    // Provide default empty object to satisfy type checker, although the if check prevents null case
     debouncedValidate(
-      csvRawText,
-      effectiveSchema, // Pass the checked schema
+        csvRawText,
+        effectiveSchema ?? {},
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [
     csvRawText,
     selectedSchemaContent,
     uploadedSchemaContent,
     useUploadedSchema,
-    debouncedValidate,
+    debouncedValidate, // Keep debouncedValidate here
+    workerBusy // ADD workerBusy to dependency array
+    // No need to include effectiveSchema directly, its parts are dependencies
   ]);
 
   return (
@@ -1042,16 +1069,30 @@ export default function CsvValidator() {
         <div className="flex-grow"></div>
 
         <Button
-          onClick={() =>
-            debouncedValidate(
-              csvRawText,
-              useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent,
-            )
-          }
+          onClick={() => {
+            const effectiveSchema = useUploadedSchema
+              ? uploadedSchemaContent
+              : selectedSchemaContent;
+            // Only call validate if effectiveSchema is not null
+            if (effectiveSchema) {
+              debouncedValidate(
+                csvRawText,
+                effectiveSchema, // Pass the non-null schema
+              );
+            } else {
+              // Optional: Show a toast or log an error if schema is missing
+              toast({
+                title: "Schema Missing",
+                description: "Please select or upload a schema before validating.",
+                variant: "destructive",
+              });
+            }
+          }}
           disabled={
             workerBusy ||
             !csvRawText.trim() ||
-            (!selectedSchemaName && !useUploadedSchema)
+            (!selectedSchemaName && !useUploadedSchema) ||
+            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent)
           }
           size="sm"
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
