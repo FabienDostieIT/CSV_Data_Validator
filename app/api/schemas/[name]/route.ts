@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import jsonc from "jsonc";
+// Import 'parse' as a named export with an alias
+import { parse as jsoncParse } from "jsonc";
 
 // Remove the explicit RouteContext interface
 // interface RouteContext {
@@ -65,11 +66,10 @@ export async function GET(
 
     // Parse JSONC (JSON with comments) for validation
     try {
-      // Check if jsonc.parse is a function before calling
-      if (typeof jsonc?.parse === 'function') {
-        // Cast jsonc.parse to a generic function type before calling
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (jsonc.parse as (text: string, reviver?: (key: any, value: any) => any) => any)(fileContent);
+      // Check if jsoncParse is a function before calling (optional safety)
+      if (typeof jsoncParse === 'function') {
+        // Use the imported jsoncParse function directly
+        jsoncParse(fileContent);
       } else {
         // Handle the case where jsonc or jsonc.parse is not loaded correctly
         console.error(`[API /api/schemas/${name}] jsonc.parse function not found.`);

@@ -39,6 +39,6 @@ describe("validation-api client", () => {
     });
     const result = await getAvailableSchemas();
     expect(fetch).toHaveBeenCalledWith("/api/schemas");
-    expect(result).toEqual({ schemas: mockSchemas });
+    expect(result).toEqual(mockSchemas);
   });
 });
