@@ -104,7 +104,7 @@ ${colorConfig
 
 // Define explicit prop types using Recharts types
 interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | string, string> {
-  indicator?: RechartsPrimitive.ChartIndicator;
+  indicator?: 'dot' | 'line' | 'dashed';
   hideLabel?: boolean;
   hideIndicator?: boolean;
   labelKey?: string;
