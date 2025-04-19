@@ -3,7 +3,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 import { type Payload } from "recharts/types/component/DefaultTooltipContent";
-import type { TooltipProps } from "recharts/types/component/Tooltip";
 
 import { cn } from "@/lib/utils";
 
@@ -103,6 +102,13 @@ ${colorConfig
   );
 };
 
+// Define a more specific type for the payload within the item
+interface ChartTooltipItemPayload {
+  fill?: string;
+  // Add other potential properties based on your data structure if needed
+  [key: string]: unknown;
+}
+
 // Define explicit prop types using Recharts types
 interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | string, string> {
   indicator?: 'dot' | 'line' | 'dashed';
@@ -110,7 +116,7 @@ interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | stri
   hideIndicator?: boolean;
   labelKey?: string;
   labelFormatter?: (label: string, payload: Payload<number | string, string>[]) => React.ReactNode;
-  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: Payload<number | string, string>["payload"] | undefined) => React.ReactNode;
+  formatter?: (value: number | string | Array<number | string>, name: string, item: Payload<number | string, string>, index: number, payload: ChartTooltipItemPayload | undefined) => React.ReactNode;
   color?: string;
   className?: string;
 }
@@ -173,15 +179,13 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
           const itemColor = typeof item.color === 'string' ? item.color : undefined;
           const indicatorColor: string = color || itemColor || payloadFill || "hsl(var(--primary))";
           
-          let formatterPayload: Payload<number | string, string>["payload"] | undefined = undefined;
+          let formatterPayload: ChartTooltipItemPayload | undefined = undefined;
           if (
             typeof item.payload === 'object' && 
             item.payload !== null && 
             !(item.payload instanceof Error)
           ) {
-            // Disable persistent error for this assignment after checks
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            formatterPayload = item.payload; 
+            formatterPayload = item.payload as ChartTooltipItemPayload;
           }
 
           const safeValue = (typeof item.value === 'number' || typeof item.value === 'string') ? item.value : 0;

@@ -202,11 +202,14 @@ export async function POST(request: Request) {
     } else if (LibraryModule && typeof LibraryModule === 'object') { 
         // Use 'in' operator for safer property checking
         if ('default' in LibraryModule && LibraryModule.default && isDocConstructor(LibraryModule.default)) {
-            Constructor = LibraryModule.default;
+            // Add type assertion
+            Constructor = LibraryModule.default as JsonSchemaStaticDocsConstructor;
         } else if ('JsonSchemaStaticDocs' in LibraryModule && LibraryModule.JsonSchemaStaticDocs && isDocConstructor(LibraryModule.JsonSchemaStaticDocs)) {
-           Constructor = LibraryModule.JsonSchemaStaticDocs;
+           // Add type assertion
+           Constructor = LibraryModule.JsonSchemaStaticDocs as JsonSchemaStaticDocsConstructor;
         } else if ('DocGenerator' in LibraryModule && LibraryModule.DocGenerator && isDocConstructor(LibraryModule.DocGenerator)) {
-           Constructor = LibraryModule.DocGenerator;
+           // Add type assertion
+           Constructor = LibraryModule.DocGenerator as JsonSchemaStaticDocsConstructor;
         }
     }
 

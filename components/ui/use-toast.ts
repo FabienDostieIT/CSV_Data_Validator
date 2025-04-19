@@ -137,8 +137,7 @@ const reducer = (state: State, action: Action): State => {
     }
     default:
         // Throw an error for unhandled cases
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-explicit-any
-        throw new Error(`Unhandled action type: ${(action as any).type}`);
+        throw new Error(`Unhandled action type: ${(action as { type: unknown }).type}`);
   }
 };
 
