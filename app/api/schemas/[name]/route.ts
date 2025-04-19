@@ -3,24 +3,24 @@ import fs from "fs/promises";
 import path from "path";
 import jsonc from "jsonc";
 
-// Define the context type explicitly
-interface RouteContext {
-  params: {
-    name: string;
-  };
-}
+// Remove the explicit RouteContext interface
+// interface RouteContext {
+//   params: {
+//     name: string;
+//   };
+// }
 
 export async function GET(
   _request: Request, // Prefix with _ if not used
-  // Use the explicitly defined RouteContext type
-  context: RouteContext, 
+  // Use the correct Next.js 15 type signature with Promise
+  { params }: { params: Promise<{ name: string }> }, 
 ) {
-  // Destructure params from the context object
-  const { params } = context;
+  // Remove the explicit destructuring added in the previous step
+  // const { params } = context;
   console.log("[API /api/schemas/[name]] Waiting for params...");
 
-  // Remove await: params is not a promise here
-  const awaitedParams = params;
+  // Ensure params is awaited (was likely correct before, but confirming)
+  const awaitedParams = await params;
   console.log(
     "[API /api/schemas/[name]] Incoming params resolved:",
     awaitedParams,
