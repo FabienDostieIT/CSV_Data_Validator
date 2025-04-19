@@ -210,14 +210,25 @@ type WorkerMessageData =
   | WorkerMessageComplete 
   | WorkerMessageError;
 
-// Debounce utility
-// function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
-//   let timer: ReturnType<typeof setTimeout>;
-//   return (...args: Parameters<T>) => {
-//     clearTimeout(timer);
-//     timer = setTimeout(() => fn(...args), delay);
-//   };
-// }
+// --- Debounce Utility ---
+function debounce<F extends (...args: any[]) => any>(
+  func: F,
+  waitFor: number,
+) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
+    new Promise((resolve) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null; // Clear timeoutId after execution
+        resolve(func(...args));
+      }, waitFor);
+    });
+}
 
 export default function CsvValidator() {
   // --- State Variables --- // Uncomment most
@@ -262,6 +273,7 @@ export default function CsvValidator() {
   );
   const [workerBusy, setWorkerBusy] = useState(false);
   const [lastRenderedSchemaName, setLastRenderedSchemaName] = useState<string | null>(null);
+  const [isEditorDirty, setIsEditorDirty] = useState<boolean>(false); // Track if editor content changed
 
   // Uncomment Refs
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
@@ -915,6 +927,46 @@ export default function CsvValidator() {
     // No need to include effectiveSchema directly, its parts are dependencies
   ]);
 
+  // --- Manual Validation Trigger --- //
+  const triggerValidation = useCallback(async () => {
+    // Determine the schema to use
+    const schemaToUse = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+
+    if (!schemaToUse) {
+      console.warn("No schema selected for validation");
+      return;
+    }
+
+    // Call the worker validation function
+    runWorkerValidation(csvRawText, schemaToUse);
+  }, [csvRawText, selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, runWorkerValidation]);
+
+  // --- Debounced Validation --- //
+  // Use useRef to keep the debounced function stable across renders
+  const debouncedValidationRef = useRef(
+    debounce(triggerValidation, 750) // Debounce validation by 750ms
+  );
+
+  // --- CSV Content Change Handler --- //
+  const handleCsvContentChange = useCallback(
+    (value: string | undefined) => {
+      const newCsvText = value || "";
+      setCsvRawText(newCsvText);
+      setIsEditorDirty(true); // Mark editor as dirty
+      // Reset status immediately on edit
+      setOverallCsvStatus("pending");
+      setValidationResults([]); 
+      setTotalErrorCount(0);
+      setTotalWarningCount(0);
+      
+      // Trigger debounced validation if content is not empty
+      if (newCsvText.trim()) {
+        debouncedValidationRef.current(); 
+      }
+    },
+    [debouncedValidationRef], // Add ref to dependency array
+  );
+
   return (
     <div className="flex flex-col h-screen w-full">
       <header className="flex items-center justify-between px-6 py-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
@@ -1270,7 +1322,7 @@ export default function CsvValidator() {
                       language="csv"
                       readOnly={false}
                       height="100%"
-                      onChange={setCsvRawText}
+                      onChange={handleCsvContentChange}
                       highlightedLine={highlightedCsvLine}
                       scrollToLine={scrollToLine}
                     />
@@ -1511,7 +1563,7 @@ export default function CsvValidator() {
                     language="csv"
                     readOnly={false}
                     height="100%"
-                    onChange={setCsvRawText}
+                    onChange={handleCsvContentChange}
                     highlightedLine={highlightedCsvLine}
                     scrollToLine={scrollToLine}
                   />
