@@ -3,7 +3,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 import { type Payload } from "recharts/types/component/DefaultTooltipContent";
-import type { LegendProps } from "recharts/types/component/Legend";
 import type { TooltipProps } from "recharts/types/component/Tooltip";
 
 import { cn } from "@/lib/utils";
@@ -253,7 +252,7 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
 ChartTooltip.displayName = "ChartTooltip";
 
 // Define explicit prop types
-interface ChartLegendProps extends LegendProps {
+interface ChartLegendProps extends RechartsPrimitive.LegendProps {
   hideIcon?: boolean;
   className?: string;
   verticalAlign?: 'top' | 'middle' | 'bottom';
