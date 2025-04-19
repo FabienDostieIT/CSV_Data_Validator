@@ -1,11 +1,11 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
-  transform: {
-    "^.+\\.[jt]sx?$": "ts-jest",
-  },
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+  },
+  transform: {
+    '^.+\\.[jt]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json', compilerOptions: { jsx: 'react-jsx' } }],
   },
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "json", "node"],
   setupFiles: ["<rootDir>/jest.polyfills.js"],

@@ -1,8 +1,8 @@
 /**
  * Tests for the ValidationUI React component
  */
-import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+// import React from "react"; // Removed
+import { /* render, screen, fireEvent, waitFor */ } from "@testing-library/react"; // Removed
 import "@testing-library/jest-dom";
 
 // Skipping test: missing lib/validation-api implementation

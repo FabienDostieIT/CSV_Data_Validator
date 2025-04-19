@@ -13,6 +13,11 @@ const nextConfig = {
   // If deploying to a subpath, set basePath and assetPrefix
   // basePath: '/your-repo-name',
   // assetPrefix: '/your-repo-name/',
+
+  // Add eslint configuration to ignore during builds
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

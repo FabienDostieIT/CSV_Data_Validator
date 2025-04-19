@@ -6,9 +6,16 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-// Only render children if open is true
-const AlertDialog = ({ open, children, ...props }: any) => {
+// Define props type extending Radix props
+interface AlertDialogProps extends AlertDialogPrimitive.AlertDialogProps {
+  open: boolean;
+  children: React.ReactNode;
+}
+
+// Use the defined props type
+const AlertDialog = ({ open, children, ...props }: AlertDialogProps) => {
   if (!open) return null;
+  // No unsafe assignment needed as props are correctly typed now
   return (
     <AlertDialogPrimitive.Root open={open} {...props}>
       {children}
