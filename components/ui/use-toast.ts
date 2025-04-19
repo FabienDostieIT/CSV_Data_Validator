@@ -136,10 +136,9 @@ const reducer = (state: State, action: Action): State => {
       };
     }
     default:
-        // Check if the action type is one of the known types
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
-        const _exhaustiveCheck: never = action.type;
-        return state; 
+        // Throw an error for unhandled cases
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-explicit-any
+        throw new Error(`Unhandled action type: ${(action as any).type}`);
   }
 };
 
