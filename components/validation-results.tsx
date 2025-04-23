@@ -170,7 +170,7 @@ const ValidationResults = memo(function ValidationResults({
 
   return (
     <>
-      {results.map((result, index) => renderRow(result, index))} // Ensure index is passed if needed by renderRow
+      {results.map((result, index) => renderRow(result, index))}
     </>
   );
 });
