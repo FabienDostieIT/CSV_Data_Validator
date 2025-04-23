@@ -85,22 +85,22 @@ This project uses a layered approach for quality assurance:
 
 **Manual Checks:**
 
-```sh
+  ```sh
 # Lint check
-pnpm lint
+  pnpm lint
 
 # Format check (Prettier)
-pnpm format --check 
+  pnpm format --check
 
 # Run unit tests
 pnpm test:unit 
 
 # Run all tests (unit + integration)
-pnpm test
+  pnpm test
 
 # Run E2E tests (Playwright)
-pnpm e2e 
-```
+  pnpm e2e
+  ```
 
 ---
 

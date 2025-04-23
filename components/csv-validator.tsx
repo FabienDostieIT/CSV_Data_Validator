@@ -54,6 +54,8 @@ import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 import ValidationResults from "@/components/validation-results";
 import Image from "next/image";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // --- Web Worker Setup ---
 const getWorker = (() => {
@@ -210,24 +212,23 @@ type WorkerMessageData =
   | WorkerMessageComplete 
   | WorkerMessageError;
 
-// --- Debounce Utility --- // ADDED
-function debounce<F extends (...args: any[]) => any>(
+// --- Debounce Utility ---
+function debounce<F extends (...args: any[]) => void>(
   func: F,
   waitFor: number,
-) {
+): (...args: Parameters<F>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
-    new Promise((resolve) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+  return (...args: Parameters<F>): void => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
 
-      timeoutId = setTimeout(() => {
-        timeoutId = null; // Clear timeoutId after execution
-        resolve(func(...args));
-      }, waitFor);
-    });
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      func(...args);
+    }, waitFor);
+  };
 }
 
 export default function CsvValidator() {
@@ -274,6 +275,10 @@ export default function CsvValidator() {
   const [workerBusy, setWorkerBusy] = useState(false);
   const [lastRenderedSchemaName, setLastRenderedSchemaName] = useState<string | null>(null);
   const [isEditorDirty, setIsEditorDirty] = useState<boolean>(false); // Track if editor content changed
+  const [isAutoDownloadOn, setIsAutoDownloadOn] = useState<boolean>(false); // ADDED State for auto-download toggle
+
+  // Local Storage Key
+  const LOCAL_STORAGE_KEY = 'csvValidatorUnsavedData';
 
   // Uncomment Refs
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden CSV input
@@ -318,23 +323,87 @@ export default function CsvValidator() {
     }
   }, [validationResults, visibleResultCount]);
 
+  // --- Effect to Load from Local Storage on Mount ---
+  useEffect(() => {
+    const savedCsv = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedCsv) {
+      console.log("Found unsaved CSV data in local storage.");
+      toast({
+        title: "Restore Session?",
+        description: "You have unsaved CSV data from a previous session.",
+        action: (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCsvRawText(savedCsv);
+              setIsEditorDirty(true); // Mark as dirty if restored
+              toast({ title: "Session Restored", description: "Loaded previous CSV data." });
+            }}
+          >
+            Restore
+          </Button>
+        ),
+        duration: 15000, // Give user time to decide
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Runs only once on mount
+
+  // --- Function to Save to Local Storage ---
+  const saveCsvToLocalStorage = useCallback((text: string) => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, text);
+      // console.log("CSV data saved to local storage."); // Optional log
+    } catch (error) {
+      console.error("Error saving CSV to local storage:", error);
+      // Maybe show a subtle toast error if localStorage is full/unavailable
+    }
+  }, []);
+
   // --- Function to Fetch and Render Schema Docs ---
   const fetchAndRenderSchemaDoc = useCallback(async () => {
-    const schemaToRender = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+    let schemaObject: Record<string, unknown> | null = null;
+    const schemaSource = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+    const currentSourceName = useUploadedSchema ? uploadedSchemaName : selectedSchemaName;
 
-    if (!schemaToRender || typeof schemaToRender === 'string') {
-      setSchemaMarkdown(
-        schemaToRender === "" ? "_Select or upload a schema to view documentation._" : "_Invalid schema format for documentation._"
-      );
-      // Set last rendered even if invalid, so we don't retry constantly
-      setLastRenderedSchemaName(useUploadedSchema ? uploadedSchemaName : selectedSchemaName);
+    // Avoid re-rendering if the same schema (by name) is already displayed
+    if (currentSourceName && currentSourceName === lastRenderedSchemaName) {
+      console.log(`Skipping doc render for already displayed schema: ${currentSourceName}`);
       return;
     }
 
-    const currentSourceName = useUploadedSchema ? uploadedSchemaName : selectedSchemaName;
-    // Avoid re-rendering if the same schema (by name) is already displayed
-    if (currentSourceName && currentSourceName === lastRenderedSchemaName) {
-        console.log(`Skipping doc render for already displayed schema: ${currentSourceName}`);
+    if (typeof schemaSource === 'string') {
+      if (!schemaSource.trim()) {
+        setSchemaMarkdown("_Select or upload a schema to view documentation._");
+        setLastRenderedSchemaName(currentSourceName);
+        return;
+      }
+      try {
+        schemaObject = JSON.parse(schemaSource) as Record<string, unknown>;
+      } catch (parseError: unknown) {
+        console.error("Error parsing schema string for documentation:", parseError);
+        const message = parseError instanceof Error ? parseError.message : "Invalid JSON format";
+        setSchemaMarkdown(`# Error parsing schema\n\n\`\`\`\n${message}\n\`\`\``);
+        setLastRenderedSchemaName(null); // Allow retry
+        toast({ title: "Schema Parse Error", description: message, variant: "destructive" });
+        setIsFetchingMarkdown(false); // Ensure loading stops
+        return;
+      }
+    } else if (schemaSource && typeof schemaSource === 'object') {
+      schemaObject = schemaSource;
+    } else {
+      setSchemaMarkdown(
+        schemaSource === "" ? "_Select or upload a schema to view documentation._" : "_Invalid schema format for documentation._"
+      );
+      setLastRenderedSchemaName(currentSourceName);
+      return;
+    }
+
+    if (!schemaObject) {
+      // This case should technically not be reached if logic above is sound
+      setSchemaMarkdown("_Could not prepare schema for documentation._");
+      setLastRenderedSchemaName(null);
         return;
     }
 
@@ -342,11 +411,11 @@ export default function CsvValidator() {
     setSchemaMarkdown("Loading documentation..."); // Placeholder
 
     try {
-      // Fetch schema doc
+      // Fetch schema doc using the parsed schemaObject
       const response = await fetch("/api/generate-schema-doc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schema: schemaToRender } as Record<string, unknown>),
+        body: JSON.stringify({ schema: schemaObject }), // Send the object
       });
 
       if (!response.ok) {
@@ -520,7 +589,7 @@ export default function CsvValidator() {
     fetchAndRenderSchemaDoc,
   ]); // Added isJsonPanelVisible & fetchAndRenderSchemaDoc
 
-  // --- Handlers --- // Uncomment all
+  // --- Handlers ---
   const handleSchemaSelectionChange = (schemaName: string) => {
     if (schemaName === "uploaded-schema" && uploadedSchemaContent) {
       setUseUploadedSchema(true);
@@ -610,9 +679,10 @@ export default function CsvValidator() {
     [toast],
   ); // Add toast dependency if used inside
 
-  const handleSaveCsv = () => {
-    if (!csvRawText.trim()) {
-      void toast({
+  // --- Updated handleSaveCsv to add logging, filename override, and BOM ---
+  const handleSaveCsv = useCallback((textToSave: string, filenameOverride?: string) => {
+    if (!textToSave.trim()) {
+      toast({
         variant: "destructive",
         title: "Error",
         description: "No CSV data to save.",
@@ -621,28 +691,32 @@ export default function CsvValidator() {
     }
 
     try {
-      // --- Save Logic ---
-      const blob = new Blob([csvRawText], { type: "text/csv;charset=utf-8;" });
+      // Prepend UTF-8 BOM for better Excel compatibility
+      const blob = new Blob(["\ufeff" + textToSave], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      const filename = csvFileName || "edited_data.csv";
+      // Prioritize override, then state, then default
+      const filename = filenameOverride || csvFileName || "edited_data.csv";
+      console.log(`Attempting to save file as: ${filename}`);
       link.setAttribute("download", filename);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      void toast({ title: "CSV Saved", description: `Saved data as ${filename}` });
+      toast({ title: "CSV Saved", description: `Saved data as ${filename}` });
+      localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear local storage on explicit save
+      setIsEditorDirty(false); // Mark as clean after explicit save
     } catch (error) {
       console.error("Error saving CSV:", error);
-      void toast({
+      toast({
         variant: "destructive",
         title: "Save Error",
         description: "Could not save CSV data.",
       });
     }
-  };
+  }, [toast, csvFileName]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click(); // Trigger click on hidden input
@@ -784,7 +858,7 @@ export default function CsvValidator() {
     }
   };
 
-  // --- Handler to clear CSV data --- // ADDED
+  // --- Updated handleClearCsv to clear local storage ---
   const handleClearCsv = useCallback(() => {
       setCsvRawText("");
       setCsvFileName("");
@@ -793,18 +867,10 @@ export default function CsvValidator() {
       setTotalWarningCount(0);
       setOverallCsvStatus("pending");
       setHighlightedCsvLine(undefined);
+    localStorage.removeItem(LOCAL_STORAGE_KEY); // <-- CLEAR LOCAL STORAGE
+    setIsEditorDirty(false); // Mark as clean
       toast({ title: "CSV Cleared", description: "Input data has been removed." });
-  }, [
-    // Add setters as dependencies if needed, e.g. setCsvRawText
-    toast, 
-    setCsvRawText, 
-    setCsvFileName, 
-    setValidationResults, 
-    setTotalErrorCount, 
-    setTotalWarningCount, 
-    setOverallCsvStatus, 
-    setHighlightedCsvLine
-  ]);
+  }, [toast]); // Simplified dependencies
 
   // --- Memoized expensive handlers ---
   const memoizedSetValidationResults = useCallback(
@@ -880,48 +946,70 @@ export default function CsvValidator() {
     [memoizedSetValidationResults, toast],
   );
 
-  // --- Debounced validation trigger --- // RENAMED & SIMPLIFIED
-  const triggerValidation = useCallback(async () => {
-    // Determine the schema to use
-    const schemaToUse = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
-
-    if (!schemaToUse) {
-      console.warn("No schema selected for validation");
+  // --- Updated Validation Trigger Function ---
+  const triggerValidation = (
+    csvText: string,
+    schema: Record<string, unknown> | string,
+    isAutoDownload: boolean
+  ) => {
+    if (!schema) {
+      console.warn("No schema available for validation trigger.");
       return;
     }
-    
-    // Mark editor as clean now that validation is explicitly triggered
-    setIsEditorDirty(false); 
+    console.log("Triggering validation and auto-save...");
+    setIsEditorDirty(false);
 
-    // Call the worker validation function
-    runWorkerValidation(csvRawText, schemaToUse);
-  }, [csvRawText, selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, runWorkerValidation]);
+    saveCsvToLocalStorage(csvText);
+    runWorkerValidation(csvText, schema);
 
-  // --- Debounced Validation --- // ADDED FOR AUTO-VALIDATION ON EDIT
-  // Use useRef to keep the debounced function stable across renders
-  const debouncedValidationRef = useRef(
-    debounce(triggerValidation, 750) // Debounce validation by 750ms
-  );
+    if (isAutoDownload) {
+      console.log("Auto-download is ON, triggering file save...");
+      const filenameToUse = csvFileName || 'edited_data.csv';
+      setTimeout(() => handleSaveCsv(csvText, filenameToUse), 100);
+    }
+  };
 
-  // --- CSV Content Change Handler --- // UPDATED FOR DEBOUNCING
+  // --- Debounced Trigger Ref ---
+  // Update the function signature type to match the new triggerValidation
+  const debouncedTriggerRef = useRef(debounce(triggerValidation, 750));
+
+  // --- CSV Content Change Handler ---
   const handleCsvContentChange = useCallback(
     (value: string | undefined) => {
       const newCsvText = value || "";
       setCsvRawText(newCsvText);
-      setIsEditorDirty(true); // Mark editor as dirty
-      // Reset status immediately on edit
+      setIsEditorDirty(true);
       setOverallCsvStatus("pending");
-      setValidationResults([]); 
+      setValidationResults([]);
       setTotalErrorCount(0);
       setTotalWarningCount(0);
-      
-      // Trigger debounced validation if content is not empty
-      if (newCsvText.trim()) {
-        debouncedValidationRef.current(); 
+
+      const schemaToUse = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+
+      if (newCsvText.trim() && schemaToUse) {
+        console.log("CSV Change: Debouncing validation call...");
+        // Pass current text, schema, AND the current auto-download state
+        debouncedTriggerRef.current(newCsvText, schemaToUse, isAutoDownloadOn);
       }
     },
-    [debouncedValidationRef], // Add ref to dependency array
+    [selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, isAutoDownloadOn]
   );
+
+  // --- Updated Manual Validation Click Handler ---
+  const handleManualValidateClick = useCallback(() => {
+    const schemaToUse = useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent;
+    if (csvRawText.trim() && schemaToUse) {
+      console.log("Manual validation clicked, triggering...");
+      // Pass the current auto-download state when calling directly
+      triggerValidation(csvRawText, schemaToUse, isAutoDownloadOn);
+    }
+  }, [csvRawText, selectedSchemaContent, uploadedSchemaContent, useUploadedSchema, isAutoDownloadOn, triggerValidation]);
+
+  // --- Manual Save Button Click Handler ---
+  const handleManualSaveClick = useCallback(() => {
+    const filenameToUse = csvFileName || 'edited_data.csv';
+    handleSaveCsv(csvRawText, filenameToUse);
+  }, [csvRawText, handleSaveCsv, csvFileName]);
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -1077,13 +1165,12 @@ export default function CsvValidator() {
         <div className="flex-grow"></div>
 
         <Button
-          onClick={triggerValidation} // Use direct trigger on button click
+          onClick={handleManualValidateClick}
           disabled={
             workerBusy ||
             !csvRawText.trim() ||
             (!selectedSchemaName && !useUploadedSchema) ||
-            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent) ||
-            !isEditorDirty // Disable if editor hasn't changed since last validation
+            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent)
           }
           size="sm"
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
@@ -1098,22 +1185,16 @@ export default function CsvValidator() {
         </Button>
       </section>
 
+      {/* --- Main Content Area --- */}
       <div
         className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 pt-6 pb-4"
         style={{ height: "calc(100vh - 112px - 72px)" }}
       >
-        {isJsonPanelVisible ? (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div
-              className="flex flex-row gap-6 flex-1 min-h-0"
-              style={{ 
-                height: "66%",
-                transitionProperty: "all",
-                transitionDuration: "300ms",
-                transitionTimingFunction: "cubic-bezier(0.77,0,0.175,1)"
-              }}
-            >
-              {/* Schema panel */}
+        {/* --- Row 1: Schema/CSV (66% height) --- */}
+        <div className="flex flex-row gap-6 min-h-0" style={{ flexBasis: '66.66%' }}>
+          {isJsonPanelVisible ? (
+            <>
+              {/* Schema panel (50% width) */}
               <div className="w-1/2 min-w-0 flex flex-col h-full overflow-hidden">
                 <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
                   <CardHeader className="flex-shrink-0 p-3 border-b border-[#1e007d]/10 dark:border-zinc-600">
@@ -1157,7 +1238,7 @@ export default function CsvValidator() {
                   </CardContent>
                 </Card>
               </div>
-              {/* CSV panel */}
+              {/* CSV panel (50% width) */}
               <div className="w-1/2 min-w-0 flex flex-col h-full overflow-hidden">
                 <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
                   <CardHeader className="flex-row justify-between items-center p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
@@ -1173,34 +1254,62 @@ export default function CsvValidator() {
                       )}
                     </div>
                     <div className="flex items-center space-x-1">
+                      {/* Auto-save Toggle */}
                       <TooltipProvider delayDuration={100}>
-                        {" "}
                         <Tooltip>
-                          {" "}
+                          <TooltipTrigger asChild>
+                            {/* Need a div for TooltipTrigger with Label + Switch */}
+                            <div className="flex items-center space-x-2 px-2">
+                              <Switch
+                                id="auto-download-switch"
+                                checked={isAutoDownloadOn}
+                                onCheckedChange={setIsAutoDownloadOn}
+                                aria-label="Toggle automatic file download"
+                                className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
+                                style={{ transform: 'scale(0.8)' }} // Make switch slightly smaller
+                              />
+                              <Label htmlFor="auto-download-switch" className="text-xs text-muted-foreground cursor-pointer">
+                                Auto-save
+                              </Label>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p>
+                              {isAutoDownloadOn
+                                ? "ON: Auto-download a copy using the original filename after edits."
+                                : "OFF: Changes saved to browser session only. Click Save icon to download."}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      {/* Manual Save Button */}
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => {
+                              onClick={(e) => { // <-- Use handleManualSaveClick
                                 e.stopPropagation();
-                                handleSaveCsv();
+                                handleManualSaveClick();
                               }}
                               className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
-                              disabled={!csvRawText.trim()}
+                              disabled={!csvRawText.trim() || !isEditorDirty} // Disable if clean or empty
                             >
                               <Save className="h-4 w-4" />
                             </Button>
-                          </TooltipTrigger>{" "}
+                          </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            <p>Save Edited CSV</p>
-                          </TooltipContent>{" "}
-                        </Tooltip>{" "}
+                            <p>Save CSV to File (Download)</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TooltipProvider>
+
+                      {/* Clear Button */}
                       {csvRawText.trim() && (
                         <TooltipProvider delayDuration={100}>
-                          {" "}
                           <Tooltip>
-                            {" "}
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
@@ -1213,11 +1322,11 @@ export default function CsvValidator() {
                               >
                                 <X className="h-4 w-4" />
                               </Button>
-                            </TooltipTrigger>{" "}
+                            </TooltipTrigger>
                             <TooltipContent side="bottom">
                               <p>Clear CSV Data</p>
-                            </TooltipContent>{" "}
-                          </Tooltip>{" "}
+                            </TooltipContent>
+                          </Tooltip>
                         </TooltipProvider>
                       )}
                     </div>
@@ -1268,138 +1377,10 @@ export default function CsvValidator() {
                   </CardContent>
                 </Card>
               </div>
-            </div>
-            <div className="h-4 flex-shrink-0" />
-            <div
-              className="w-full min-h-0 flex flex-col flex-shrink-0"
-              style={{ height: "34%" }}
-            >
-              <Card className="h-full flex flex-col border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden">
-                <CardHeader
-                  className={cn(
-                    "flex flex-row items-center justify-between p-3 border-b flex-shrink-0",
-                    overallCsvStatus === "valid"
-                      ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
-                      : overallCsvStatus === "invalid"
-                        ? "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
-                        : "bg-[#1e007d]/5 dark:bg-zinc-800/50 border-[#1e007d]/10 dark:border-zinc-600",
-                  )}
-                >
-                  <div className="flex items-center space-x-4">
-                    {overallCsvStatus === "valid" ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : overallCsvStatus === "invalid" ? (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    ) : overallCsvStatus === "pending" ? (
-                      <FileText className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                    )}
-                    <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">
-                      Validation Results
-                    </CardTitle>
-                    {(totalErrorCount > 0 || totalWarningCount > 0) && (
-                      <span className="text-lg text-muted-foreground font-bold">
-                        (
-                        {totalErrorCount > 0 ? `${totalErrorCount} Errors` : ""}
-                        {totalErrorCount > 0 && totalWarningCount > 0
-                          ? ", "
-                          : ""}
-                        {totalWarningCount > 0
-                          ? `${totalWarningCount} Warnings`
-                          : ""}
-                        )
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {overallCsvStatus === "valid" && (
-                      <span className="flex items-center text-green-700 dark:text-green-300 font-bold text-base bg-green-50 dark:bg-green-900/40 px-3 py-1 rounded-full">
-                        <CheckCircle className="h-5 w-5 mr-1 text-green-500" />
-                        Success: Data is valid!
-                      </span>
-                    )}
-                    {overallCsvStatus === "invalid" && (
-                      <span className="flex items-center text-red-700 dark:text-red-300 font-bold text-base bg-red-50 dark:bg-red-900/40 px-3 py-1 rounded-full">
-                        <XCircle className="h-5 w-5 mr-1 text-red-500" />
-                        Invalid data
-                      </span>
-                    )}
-                    <TooltipProvider delayDuration={100}>
-                      {" "}
-                      <Tooltip>
-                        {" "}
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleCopyResults}
-                            disabled={validationResults.length === 0}
-                            className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>{" "}
-                        <TooltipContent side="bottom">
-                          <p>Copy Results</p>
-                        </TooltipContent>{" "}
-                      </Tooltip>{" "}
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <ScrollArea className="h-full" type="auto">
-                  <CardContent className="p-0 h-full overflow-auto">
-                    <div
-                      style={{
-                        height: `${rowVirtualizer.getTotalSize()}px`,
-                        width: "100%",
-                        position: "relative",
-                      }}
-                    >
-                      {displayedResults.length === 0 && !workerBusy && (
-                        <div className="flex items-center justify-center p-10 text-muted-foreground">
-                          {overallCsvStatus === "pending"
-                            ? "Upload CSV and click Validate."
-                            : "No issues found."}
-                        </div>
-                      )}
-                      {workerBusy && (
-                        <div className="flex items-center justify-center p-10 text-muted-foreground">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                          Validating...
-                        </div>
-                      )}
-                      <ValidationResults
-                        results={displayedResults}
-                        openAccordionValue={openAccordionValue}
-                        setOpenAccordionValue={setOpenAccordionValue}
-                        setHighlightedCsvLine={setHighlightedCsvLine}
-                        setScrollToLine={setScrollToLine}
-                      />
-                    </div>
-                  </CardContent>
-                  {validationResults.length > visibleResultCount && (
-                    <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
-                      <Button
-                        variant="secondary"
-                        onClick={handleShowMoreResults}
-                        disabled={workerBusy}
-                      >
-                        Show More Results ({displayedResults.length} /{" "}
-                        {validationResults.length})
-                      </Button>
-                    </CardFooter>
-                  )}
-                </ScrollArea>
-              </Card>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div
-              className="flex-1 min-h-0 flex flex-col overflow-hidden"
-              style={{ height: "66%" }}
-            >
+            </>
+          ) : (
+            /* CSV panel (100% width) */
+            <div className="w-full min-w-0 flex flex-col h-full overflow-hidden">
               <Card className="flex-1 min-h-0 flex flex-col h-full border-[#1e007d]/20 dark:border-zinc-700 shadow-md dark:shadow-zinc-900/50 rounded-lg">
                 <CardHeader className="flex-row justify-between items-center p-3 border-b border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0">
                   <div className="flex items-center space-x-2">
@@ -1414,34 +1395,62 @@ export default function CsvValidator() {
                     )}
                   </div>
                   <div className="flex items-center space-x-1">
+                    {/* Auto-save Toggle */}
                     <TooltipProvider delayDuration={100}>
-                      {" "}
                       <Tooltip>
-                        {" "}
+                        <TooltipTrigger asChild>
+                          {/* Need a div for TooltipTrigger with Label + Switch */}
+                          <div className="flex items-center space-x-2 px-2">
+                            <Switch
+                              id="auto-download-switch"
+                              checked={isAutoDownloadOn}
+                              onCheckedChange={setIsAutoDownloadOn}
+                              aria-label="Toggle automatic file download"
+                              className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
+                              style={{ transform: 'scale(0.8)' }} // Make switch slightly smaller
+                            />
+                            <Label htmlFor="auto-download-switch" className="text-xs text-muted-foreground cursor-pointer">
+                              Auto-save
+                            </Label>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>
+                            {isAutoDownloadOn
+                              ? "ON: Auto-download a copy using the original filename after edits."
+                              : "OFF: Changes saved to browser session only. Click Save icon to download."}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    {/* Manual Save Button */}
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={(e) => {
+                            onClick={(e) => { // <-- Use handleManualSaveClick
                               e.stopPropagation();
-                              handleSaveCsv();
+                              handleManualSaveClick();
                             }}
                             className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
-                            disabled={!csvRawText.trim()}
+                            disabled={!csvRawText.trim() || !isEditorDirty} // Disable if clean or empty
                           >
                             <Save className="h-4 w-4" />
                           </Button>
-                        </TooltipTrigger>{" "}
+                        </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>Save Edited CSV</p>
-                        </TooltipContent>{" "}
-                      </Tooltip>{" "}
+                          <p>Save CSV to File (Download)</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </TooltipProvider>
+
+                    {/* Clear Button */}
                     {csvRawText.trim() && (
                       <TooltipProvider delayDuration={100}>
-                        {" "}
                         <Tooltip>
-                          {" "}
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
@@ -1454,11 +1463,11 @@ export default function CsvValidator() {
                             >
                               <X className="h-4 w-4" />
                             </Button>
-                          </TooltipTrigger>{" "}
+                          </TooltipTrigger>
                           <TooltipContent side="bottom">
                             <p>Clear CSV Data</p>
-                          </TooltipContent>{" "}
-                        </Tooltip>{" "}
+                          </TooltipContent>
+                        </Tooltip>
                       </TooltipProvider>
                     )}
                   </div>
@@ -1509,132 +1518,133 @@ export default function CsvValidator() {
                 </CardContent>
               </Card>
             </div>
-            <div className="h-4 flex-shrink-0" />
-            <div
-              className="min-h-0 flex flex-col flex-shrink-0 overflow-hidden"
-              style={{ height: "34%" }}
+          )}
+        </div>
+
+        {/* Separator */}
+        <div className="h-4 flex-shrink-0" />
+
+        {/* --- Row 2: Results Panel (33% height) --- */}
+        <div className="w-full min-h-0 flex flex-col" style={{ flexBasis: '33.33%' }}>
+          <Card className="h-full flex flex-col border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden">
+            <CardHeader
+              className={cn(
+                "flex flex-row items-center justify-between p-3 border-b flex-shrink-0",
+                overallCsvStatus === "valid"
+                  ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
+                  : overallCsvStatus === "invalid"
+                    ? "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                    : "bg-[#1e007d]/5 dark:bg-zinc-800/50 border-[#1e007d]/10 dark:border-zinc-600",
+              )}
             >
-              <Card className="h-full flex flex-col border-[#1e007d]/20 dark:border-zinc-700 shadow-lg dark:shadow-zinc-900/50 rounded-lg overflow-hidden">
-                <CardHeader
-                  className={cn(
-                    "flex flex-row items-center justify-between p-3 border-b flex-shrink-0",
-                    overallCsvStatus === "valid"
-                      ? "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700"
-                      : overallCsvStatus === "invalid"
-                        ? "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
-                        : "bg-[#1e007d]/5 dark:bg-zinc-800/50 border-[#1e007d]/10 dark:border-zinc-600",
-                  )}
-                >
-                  <div className="flex items-center space-x-4">
-                    {overallCsvStatus === "valid" ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : overallCsvStatus === "invalid" ? (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    ) : overallCsvStatus === "pending" ? (
-                      <FileText className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                    )}
-                    <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">
-                      Validation Results
-                    </CardTitle>
-                    {(totalErrorCount > 0 || totalWarningCount > 0) && (
-                      <span className="text-lg text-muted-foreground font-bold">
-                        (
-                        {totalErrorCount > 0 ? `${totalErrorCount} Errors` : ""}
-                        {totalErrorCount > 0 && totalWarningCount > 0
-                          ? ", "
-                          : ""}
-                        {totalWarningCount > 0
-                          ? `${totalWarningCount} Warnings`
-                          : ""}
-                        )
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {overallCsvStatus === "valid" && (
-                      <span className="flex items-center text-green-700 dark:text-green-300 font-bold text-base bg-green-50 dark:bg-green-900/40 px-3 py-1 rounded-full">
-                        <CheckCircle className="h-5 w-5 mr-1 text-green-500" />
-                        Success: Data is valid!
-                      </span>
-                    )}
-                    {overallCsvStatus === "invalid" && (
-                      <span className="flex items-center text-red-700 dark:text-red-300 font-bold text-base bg-red-50 dark:bg-red-900/40 px-3 py-1 rounded-full">
-                        <XCircle className="h-5 w-5 mr-1 text-red-500" />
-                        Invalid data
-                      </span>
-                    )}
-                    <TooltipProvider delayDuration={100}>
-                      {" "}
-                      <Tooltip>
-                        {" "}
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleCopyResults}
-                            disabled={validationResults.length === 0}
-                            className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>{" "}
-                        <TooltipContent side="bottom">
-                          <p>Copy Results</p>
-                        </TooltipContent>{" "}
-                      </Tooltip>{" "}
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                <ScrollArea className="h-full" type="auto">
-                  <CardContent className="p-0 h-full overflow-auto">
-                    <div
-                      style={{
-                        height: `${rowVirtualizer.getTotalSize()}px`,
-                        width: "100%",
-                        position: "relative",
-                      }}
-                    >
-                      {displayedResults.length === 0 && !workerBusy && (
-                        <div className="flex items-center justify-center p-10 text-muted-foreground">
-                          {overallCsvStatus === "pending"
-                            ? "Upload CSV and click Validate."
-                            : "No issues found."}
-                        </div>
-                      )}
-                      {workerBusy && (
-                        <div className="flex items-center justify-center p-10 text-muted-foreground">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                          Validating...
-                        </div>
-                      )}
-                      <ValidationResults
-                        results={displayedResults}
-                        openAccordionValue={openAccordionValue}
-                        setOpenAccordionValue={setOpenAccordionValue}
-                        setHighlightedCsvLine={setHighlightedCsvLine}
-                        setScrollToLine={setScrollToLine}
-                      />
-                    </div>
-                  </CardContent>
-                  {validationResults.length > visibleResultCount && (
-                    <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+              <div className="flex items-center space-x-4">
+                {overallCsvStatus === "valid" ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : overallCsvStatus === "invalid" ? (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                ) : overallCsvStatus === "pending" ? (
+                  <FileText className="h-5 w-5 text-gray-400" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                )}
+                <CardTitle className="text-base font-semibold text-[#1e007d] dark:text-zinc-100">
+                  Validation Results
+                </CardTitle>
+                {(totalErrorCount > 0 || totalWarningCount > 0) && (
+                  <span className="text-lg text-muted-foreground font-bold">
+                    (
+                    {totalErrorCount > 0 ? `${totalErrorCount} Errors` : ""}
+                    {totalErrorCount > 0 && totalWarningCount > 0
+                      ? ", "
+                      : ""}
+                    {totalWarningCount > 0
+                      ? `${totalWarningCount} Warnings`
+                      : ""}
+                    )
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                {overallCsvStatus === "valid" && (
+                  <span className="flex items-center text-green-700 dark:text-green-300 font-bold text-base bg-green-50 dark:bg-green-900/40 px-3 py-1 rounded-full">
+                    <CheckCircle className="h-5 w-5 mr-1 text-green-500" />
+                    Success: Data is valid!
+                  </span>
+                )}
+                {overallCsvStatus === "invalid" && (
+                  <span className="flex items-center text-red-700 dark:text-red-300 font-bold text-base bg-red-50 dark:bg-red-900/40 px-3 py-1 rounded-full">
+                    <XCircle className="h-5 w-5 mr-1 text-red-500" />
+                    Invalid data
+                  </span>
+                )}
+                <TooltipProvider delayDuration={100}>
+                  {" "}
+                  <Tooltip>
+                    {" "}
+                    <TooltipTrigger asChild>
                       <Button
-                        variant="secondary"
-                        onClick={handleShowMoreResults}
-                        disabled={workerBusy}
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleCopyResults}
+                        disabled={validationResults.length === 0}
+                        className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
                       >
-                        Show More Results ({displayedResults.length} /{" "}
-                        {validationResults.length})
+                        <Copy className="h-4 w-4" />
                       </Button>
-                    </CardFooter>
+                    </TooltipTrigger>{" "}
+                    <TooltipContent side="bottom">
+                      <p>Copy Results</p>
+                    </TooltipContent>{" "}
+                  </Tooltip>{" "}
+                </TooltipProvider>
+              </div>
+            </CardHeader>
+            <ScrollArea type="auto">
+              <CardContent className="p-0 overflow-auto">
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {displayedResults.length === 0 && !workerBusy && (
+                    <div className="flex items-center justify-center p-10 text-muted-foreground">
+                      {overallCsvStatus === "pending"
+                        ? "Upload CSV and click Validate."
+                        : "No issues found."}
+                    </div>
                   )}
-                </ScrollArea>
-              </Card>
-            </div>
-          </div>
-        )}
+                  {workerBusy && (
+                    <div className="flex items-center justify-center p-10 text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                      Validating...
+                    </div>
+                  )}
+                  <ValidationResults
+                    results={displayedResults}
+                    openAccordionValue={openAccordionValue}
+                    setOpenAccordionValue={setOpenAccordionValue}
+                    setHighlightedCsvLine={setHighlightedCsvLine}
+                    setScrollToLine={setScrollToLine}
+                  />
+                </div>
+              </CardContent>
+              {validationResults.length > visibleResultCount && (
+                <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
+                  <Button
+                    variant="secondary"
+                    onClick={handleShowMoreResults}
+                    disabled={workerBusy}
+                  >
+                    Show More Results ({displayedResults.length} /{" "}
+                    {validationResults.length})
+                  </Button>
+                </CardFooter>
+              )}
+            </ScrollArea>
+          </Card>
+        </div>
       </div>
 
       <input
