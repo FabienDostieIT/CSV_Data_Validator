@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 import { type Payload } from "recharts/types/component/DefaultTooltipContent";
+import { type Props as DefaultLegendContentProps } from "recharts/types/component/DefaultLegendContent";
 
 import { cn } from "@/lib/utils";
 
@@ -235,7 +236,7 @@ interface ChartLegendProps extends RechartsPrimitive.LegendProps {
 const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLegendProps) => {
   const { config } = useChart();
 
-  const renderLegendItem = (props: RechartsPrimitive.LegendProps) => {
+  const renderLegendItem = (props: DefaultLegendContentProps) => {
     const { payload } = props;
     if (!payload) return null;
 
