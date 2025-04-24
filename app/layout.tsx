@@ -14,9 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <body className={inter.className}>
-        <ThemeProvider
-          defaultTheme="dark"
-        >
+        <ThemeProvider defaultTheme="dark">
           {children}
           <Toaster />
         </ThemeProvider>

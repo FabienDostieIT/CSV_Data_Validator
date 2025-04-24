@@ -84,10 +84,10 @@ const config = {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
       },
       transitionDuration: {
-        '[300ms]': '300ms',
+        "[300ms]": "300ms",
       },
       transitionTimingFunction: {
-        '[cubic-bezier(0.77,0,0.175,1)]': 'cubic-bezier(0.77,0,0.175,1)',
+        "[cubic-bezier(0.77,0,0.175,1)]": "cubic-bezier(0.77,0,0.175,1)",
       },
     },
   },

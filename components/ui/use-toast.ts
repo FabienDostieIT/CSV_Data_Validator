@@ -77,15 +77,21 @@ const addToRemoveQueue = (toastId: string) => {
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case actionTypes.ADD_TOAST: {
-      const newToasts: ToasterToast[] = [action.toast, ...state.toasts].slice(0, TOAST_LIMIT);
+      const newToasts: ToasterToast[] = [action.toast, ...state.toasts].slice(
+        0,
+        TOAST_LIMIT,
+      );
       return {
         ...state,
         toasts: newToasts,
       };
     }
     case actionTypes.UPDATE_TOAST: {
-      const updatedToasts = state.toasts.map((t): ToasterToast => 
-        t.id === action.toast.id ? ({ ...t, ...action.toast } as ToasterToast) : t 
+      const updatedToasts = state.toasts.map(
+        (t): ToasterToast =>
+          t.id === action.toast.id
+            ? ({ ...t, ...action.toast } as ToasterToast)
+            : t,
       );
       return {
         ...state,
@@ -97,10 +103,8 @@ const reducer = (state: State, action: Action): State => {
 
       if (toastId !== undefined) {
         addToRemoveQueue(String(toastId));
-        const dismissedToasts = state.toasts.map((t): ToasterToast => 
-          t.id === toastId
-            ? { ...t, open: false }
-            : t
+        const dismissedToasts = state.toasts.map(
+          (t): ToasterToast => (t.id === toastId ? { ...t, open: false } : t),
         );
         return {
           ...state,
@@ -110,10 +114,12 @@ const reducer = (state: State, action: Action): State => {
         state.toasts.forEach((toast) => {
           addToRemoveQueue(toast.id);
         });
-        const allDismissedToasts = state.toasts.map((t): ToasterToast => ({ 
-          ...t, 
-          open: false 
-        }));
+        const allDismissedToasts = state.toasts.map(
+          (t): ToasterToast => ({
+            ...t,
+            open: false,
+          }),
+        );
         return {
           ...state,
           toasts: allDismissedToasts,
@@ -136,8 +142,10 @@ const reducer = (state: State, action: Action): State => {
       };
     }
     default:
-        // Throw an error for unhandled cases
-        throw new Error(`Unhandled action type: ${(action as { type: unknown }).type}`);
+      // Throw an error for unhandled cases
+      throw new Error(
+        `Unhandled action type: ${String((action as { type: unknown }).type)}`,
+      );
   }
 };
 
@@ -162,7 +170,8 @@ function toast({ ...props }: Toast) {
       type: actionTypes.UPDATE_TOAST,
       toast: { ...props, id },
     });
-  const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+  const dismiss = () =>
+    dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
 
   dispatch({
     type: actionTypes.ADD_TOAST,
@@ -204,7 +213,8 @@ function useToast(): UseToastReturn {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
+    dismiss: (toastId?: string) =>
+      dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
   };
 }
 

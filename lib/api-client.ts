@@ -1,0 +1,132 @@
+/**
+ * API client for fetching schema data that works in both development (dynamic API)
+ * and production (static JSON files) environments.
+ */
+
+// Define the schema object interface for better typing
+export interface SchemaObject {
+  name: string;
+  filename: string;
+}
+
+/**
+ * Gets the base URL for API requests, adjusting for GitHub Pages in production
+ */
+const getApiBase = () => {
+  // In production (GitHub Pages), use static JSON files in the /api directory
+  if (process.env.NODE_ENV === 'production') {
+    return '/JSON_Schema_Validator/api';
+  }
+  // In development, use the dynamic API routes
+  return '/api';
+};
+
+/**
+ * Fetches the list of available schemas
+ * @returns {Promise<SchemaObject[]>}
+ */
+export async function getSchemasList(): Promise<SchemaObject[]> {
+  const url = `${getApiBase()}/schemas${process.env.NODE_ENV === 'production' ? '/index.json' : ''}`;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching schemas list:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches a specific schema by name
+ * @param {string} schemaName - The name of the schema to fetch
+ * @returns {Promise<Record<string, unknown>>} - The schema object
+ */
+export async function getSchemaByName(schemaName: string): Promise<Record<string, unknown>> {
+  // Ensure no .json extension and remove any path traversal
+  const safeSchemaName = schemaName.replace(/\.json$/, '').replace(/[^\w-]/g, '');
+  
+  const url = `${getApiBase()}/schemas/${safeSchemaName}${process.env.NODE_ENV === 'production' ? '.json' : ''}`;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching schema ${schemaName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Generate documentation for a schema
+ * Note: In production, this will attempt to use a static generator on the client side
+ * since the API endpoint won't be available
+ * @param {Record<string, unknown>} schema - The schema object
+ * @returns {Promise<{markdown: string}>}
+ */
+export async function generateSchemaDocumentation(schema: Record<string, unknown>): Promise<{markdown: string}> {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      // In production we'll need to use a client-side fallback
+      // This is a placeholder for potential client-side doc generation
+      // For now, return a basic markdown representation of the schema
+      const title = schema.title as string || 'JSON Schema';
+      const description = schema.description as string || 'No description available';
+      
+      let markdown = `# ${title}\n\n${description}\n\n`;
+      
+      if (schema.properties && typeof schema.properties === 'object') {
+        markdown += '## Properties\n\n';
+        
+        for (const [propName, propDetails] of Object.entries(schema.properties as Record<string, any>)) {
+          markdown += `### ${propName}\n\n`;
+          
+          if (propDetails.description) {
+            markdown += `${propDetails.description}\n\n`;
+          }
+          
+          if (propDetails.type) {
+            markdown += `**Type**: ${propDetails.type}\n\n`;
+          }
+          
+          if (propDetails.examples && Array.isArray(propDetails.examples) && propDetails.examples.length > 0) {
+            markdown += `**Example**: \`${JSON.stringify(propDetails.examples[0])}\`\n\n`;
+          }
+        }
+      }
+      
+      return { markdown };
+    } catch (error) {
+      console.error('Error generating client-side schema documentation:', error);
+      return { 
+        markdown: `# Error Generating Documentation\n\nCould not generate documentation for the schema in static mode.` 
+      };
+    }
+  }
+  
+  // In development, use the API endpoint
+  try {
+    const response = await fetch(`${getApiBase()}/generate-schema-doc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schema }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching schema documentation:', error);
+    throw error;
+  }
+} 

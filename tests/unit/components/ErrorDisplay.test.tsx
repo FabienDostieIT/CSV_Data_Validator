@@ -2,7 +2,7 @@
  * Tests for the ErrorDisplay React component
  */
 // import React from 'react'; // Removed
-import { /* render, screen, fireEvent */ } from '@testing-library/react'; // Removed
+import {} from /* render, screen, fireEvent */ "@testing-library/react"; // Removed
 import "@testing-library/jest-dom";
 // Skipping test: missing components/ErrorDisplay implementation
 // import ErrorDisplay from '../../../components/ErrorDisplay';

@@ -103,14 +103,6 @@ ${colorConfig
   );
 };
 
-// Define a type for the payload item to avoid `any`
-// You might need to adjust this based on the actual structure of your data
-interface ChartTooltipItemPayload {
-  fill?: string;
-  // Add other potential properties based on your data structure if needed
-  [key: string]: unknown;
-}
-
 // Define props for the ChartTooltip, extending Recharts types
 interface ChartTooltipProps extends RechartsPrimitive.TooltipProps<number | string, string> {
   indicator?: 'dot' | 'line' | 'dashed';
@@ -130,17 +122,16 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
     if (hideLabel || !payload || payload.length === 0) {
       return null;
     }
-
     const [item] = payload;
     const itemConfig = getPayloadConfigFromPayload(config, item);
-    const value = label || itemConfig?.label;
+    const value: React.ReactNode | undefined = label || (itemConfig ? itemConfig.label : undefined);
 
     if (!value) {
       return null;
     }
 
     return <div className="font-medium">{value}</div>;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [label, payload, hideLabel, config]);
 
   if (!active || !payload || payload.length === 0) {
@@ -160,18 +151,18 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
       <div className="grid gap-1.5">
         {payload.map((item, index) => {
           const itemConfig = getPayloadConfigFromPayload(config, item);
-          const indicatorColor = color || item?.payload?.fill || item.color || "hsl(var(--foreground))";
+          const indicatorColor = color || (item.payload as { fill?: string })?.fill || item.color as string || "hsl(var(--foreground))";
 
           return (
             <div
-              key={item.dataKey}
+              key={item.dataKey as string}
               className={cn(
                 "flex w-full items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                 indicator === "dot" && "items-center"
               )}
             >
-              {formatter && item?.value !== undefined && item.name ? (
-                formatter(item.value, item.name, item, index, payload)
+              {formatter && item?.value !== undefined && item.name !== undefined ? (
+                formatter(item.value as number | string | Array<number | string>, item.name as string, item, index, payload)
               ) : (
                 <>
                   {itemConfig?.icon ? (
@@ -188,12 +179,10 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
                             "my-0.5": nestLabel && indicator === "dashed",
                           }
                         )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
+                        style={{
+                          "--color-bg": indicatorColor,
+                          "--color-border": indicatorColor,
+                        } as React.CSSProperties}
                       />
                     )
                   )}
@@ -206,12 +195,12 @@ const ChartTooltip = ({ active, payload, label, className, indicator = "dot", hi
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
                       <span className="text-muted-foreground">
-                        {itemConfig?.label || item.name}
+                        {itemConfig?.label || item.name as string}
                       </span>
                     </div>
-                    {item.value && (
+                    {item.value !== undefined && (
                       <span className="font-mono font-medium tabular-nums text-foreground">
-                        {item.value.toLocaleString()}
+                        {(item.value as number | { toString: () => string}).toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -249,8 +238,8 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
         )}
       >
         {payload.map((item) => {
-          const itemConfig = getPayloadConfigFromPayload(config, item as Payload<any, any>); // Cast needed? Recharts types can be complex
-          const color = itemConfig?.color || item.color || "hsl(var(--foreground))";
+          const itemConfig = getPayloadConfigFromPayload(config, item);
+          const color = itemConfig?.color || item.color as string || "hsl(var(--foreground))";
 
           if (itemConfig?.hide) {
             return null;
@@ -258,7 +247,7 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
 
           return (
             <div
-              key={item.value}
+              key={String(item.value)} 
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -273,7 +262,7 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
                   />
                 )
               )}
-              {itemConfig?.label || item.value}
+              {itemConfig?.label || String(item.value)}
             </div>
           );
         })}
@@ -285,18 +274,26 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
 };
 ChartLegend.displayName = "ChartLegend";
 
-// Helper function to extract config from payload
-function getPayloadConfigFromPayload(
-  config: ChartConfig,
-  item: Payload<any, any>, // Using Payload type
-) {
-  // Ensure item and item.dataKey are defined
-  if (!item || !item.dataKey) {
-    return null;
-  }
-  return config[item.dataKey as keyof typeof config] || null;
+// Define a minimal interface for payload items used by the helper
+interface MinimalPayloadItem {
+  dataKey?: string | number | ((obj: any) => any);
+  name?: string;
+  color?: string;
+  value?: any;
+  payload?: Record<string, unknown>;
 }
 
+// Helper to find the chart config matching the payload item
+const getPayloadConfigFromPayload = (
+  config: ChartConfig,
+  item: MinimalPayloadItem,
+): ChartConfig[string] | undefined => {
+  if (typeof item.dataKey === "string") {
+    return config[item.dataKey];
+  }
+
+  return undefined;
+}
 
 // Export all components
 export {

@@ -1,4 +1,4 @@
-import { ValidationResponse } from '@/types/validation';
+import { ValidationResponse } from "@/types/validation";
 
 // Minimal API client for validation
 // export async function validateJson(
@@ -40,14 +40,10 @@ export async function getAvailableSchemas(): Promise<string[]> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json() as { schemas?: unknown[] };
+    const data = (await response.json()) as { schemas?: unknown[] };
 
     // Basic type check
-    if (
-      !data ||
-      typeof data !== 'object' ||
-      !Array.isArray(data?.schemas)
-    ) {
+    if (!data || typeof data !== "object" || !Array.isArray(data?.schemas)) {
       console.error("Invalid response format from /api/schemas:", data);
       throw new Error("Invalid response format from API.");
     }

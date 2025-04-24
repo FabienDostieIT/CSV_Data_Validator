@@ -4,7 +4,7 @@ import * as JsonSchemaStaticDocsLib from "json-schema-static-docs"; // Use names
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { createRequire } from "module"; // Import createRequire
+// import { createRequire } from "module"; // Import createRequire
 import prettier from "prettier";
 import parserTypescript from "prettier/parser-typescript";
 // import { DocGenerator } from "json-schema-static-docs"; // Removed
@@ -28,7 +28,9 @@ async function copyDirRecursive(src: string, dest: string) {
 }
 
 // Helper to create a temporary file
-async function writeTempSchemaFile(schema: Record<string, unknown>): Promise<string> {
+async function writeTempSchemaFile(
+  schema: Record<string, unknown>,
+): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "schema-"));
   const tempFilePath = path.join(tempDir, "schema.json");
   await fs.writeFile(tempFilePath, JSON.stringify(schema, null, 2));
@@ -81,13 +83,13 @@ interface JsonSchemaStaticDocsOptions {
   createIndex: boolean;
   addFrontMatter: boolean;
   // Replace 'any' with 'unknown' for stricter checking
-  [key: string]: unknown; 
+  [key: string]: unknown;
 }
 
 interface JsonSchemaStaticDocsInstance {
   generate: () => Promise<void>;
   // Add other known methods/properties if available
-  [key: string]: unknown; 
+  [key: string]: unknown;
 }
 
 // Type for the constructor, assuming it's the default export or the module itself
@@ -104,30 +106,35 @@ type JsonSchemaStaticDocsModule =
   | { [key: string]: unknown }; // Fallback for other structures
 
 // Custom Type Guard for the Constructor
-function isDocConstructor(obj: unknown): obj is JsonSchemaStaticDocsConstructor {
-  return typeof obj === 'function' && obj.prototype !== undefined;
+function isDocConstructor(
+  obj: unknown,
+): obj is JsonSchemaStaticDocsConstructor {
+  return typeof obj === "function" && obj.prototype !== undefined;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function formatMarkdown(markdown: string): Promise<string> {
   try {
-    const result: string = await prettier.format(markdown, { 
+    const result: string = await prettier.format(markdown, {
       parser: "markdown",
-      plugins: [parserTypescript], 
+      plugins: [parserTypescript],
       printWidth: 80,
       proseWrap: "always",
     });
     return result;
-  } catch (error: unknown) { // Type error as unknown
+  } catch (error: unknown) {
+    // Type error as unknown
     console.warn("Could not parse error response from generate-schema-doc");
     // Safe access to properties
     let statusText = "Unknown status";
-    if (typeof error === 'object' && error !== null && 'statusText' in error) {
-        statusText = String((error as { statusText: unknown }).statusText);
+    if (typeof error === "object" && error !== null && "statusText" in error) {
+      statusText = String((error as { statusText: unknown }).statusText);
     }
     const errorDetails = `: ${statusText}`; // Use const as errorDetails is not reassigned after this block
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Markdown formatting failed${errorDetails}. Original error: ${message}`);
+    throw new Error(
+      `Markdown formatting failed${errorDetails}. Original error: ${message}`,
+    );
   }
 }
 
@@ -138,7 +145,9 @@ export async function POST(request: Request) {
   const cleanupPaths: string[] = []; // Keep track of all paths to clean
 
   try {
-    const { schema } = (await request.json()) as { schema: Record<string, unknown> }; // Added type assertion
+    const { schema } = (await request.json()) as {
+      schema: Record<string, unknown>;
+    }; // Added type assertion
 
     if (!schema) {
       return NextResponse.json(
@@ -193,30 +202,47 @@ export async function POST(request: Request) {
 
     // 4. Instantiate and run json-schema-static-docs
     // Attempt to find the constructor more safely
-    const LibraryModule: JsonSchemaStaticDocsModule = JsonSchemaStaticDocsLib; 
+    const LibraryModule = JsonSchemaStaticDocsLib as JsonSchemaStaticDocsModule; // ADDED TYPE ASSERTION
     let Constructor: JsonSchemaStaticDocsConstructor | null = null;
 
     // Use the type guard first for the direct constructor case
     if (isDocConstructor(LibraryModule)) {
-         Constructor = LibraryModule;
-    // Check if it's an object before checking properties
-    } else if (LibraryModule && typeof LibraryModule === 'object') { 
-        // Use 'in' operator for safer property checking
-        if ('default' in LibraryModule && LibraryModule.default && isDocConstructor(LibraryModule.default)) {
-            // Add type assertion
-            Constructor = LibraryModule.default as JsonSchemaStaticDocsConstructor;
-        } else if ('JsonSchemaStaticDocs' in LibraryModule && LibraryModule.JsonSchemaStaticDocs && isDocConstructor(LibraryModule.JsonSchemaStaticDocs)) {
-           // Add type assertion
-           Constructor = LibraryModule.JsonSchemaStaticDocs as JsonSchemaStaticDocsConstructor;
-        } else if ('DocGenerator' in LibraryModule && LibraryModule.DocGenerator && isDocConstructor(LibraryModule.DocGenerator)) {
-           // Add type assertion
-           Constructor = LibraryModule.DocGenerator as JsonSchemaStaticDocsConstructor;
-        }
+      Constructor = LibraryModule;
+      // Check if it's an object before checking properties
+    } else if (LibraryModule && typeof LibraryModule === "object") {
+      // Use 'in' operator for safer property checking
+      if (
+        "default" in LibraryModule &&
+        LibraryModule.default &&
+        isDocConstructor(LibraryModule.default)
+      ) {
+        // Add type assertion
+        Constructor = LibraryModule.default;
+      } else if (
+        "JsonSchemaStaticDocs" in LibraryModule &&
+        LibraryModule.JsonSchemaStaticDocs &&
+        isDocConstructor(LibraryModule.JsonSchemaStaticDocs)
+      ) {
+        // Add type assertion
+        Constructor = LibraryModule.JsonSchemaStaticDocs;
+      } else if (
+        "DocGenerator" in LibraryModule &&
+        LibraryModule.DocGenerator &&
+        isDocConstructor(LibraryModule.DocGenerator)
+      ) {
+        // Add type assertion
+        Constructor = LibraryModule.DocGenerator;
+      }
     }
 
     if (!Constructor) {
-        console.error("API: Could not find JsonSchemaStaticDocs constructor in the imported module.", LibraryModule);
-        throw new Error("Failed to load the documentation generator library correctly.");
+      console.error(
+        "API: Could not find JsonSchemaStaticDocs constructor in the imported module.",
+        LibraryModule,
+      );
+      throw new Error(
+        "Failed to load the documentation generator library correctly.",
+      );
     }
 
     // Instantiate using the found constructor
@@ -238,12 +264,14 @@ export async function POST(request: Request) {
       // Call generate method (type safety from interface)
       await generator.generate();
       console.log("API: Generator finished.");
-    } catch (genError: unknown) { // Ensure genError is unknown
+    } catch (genError: unknown) {
+      // Ensure genError is unknown
       console.error("API: Error during generator.generate():", genError);
       // Use type guard for message
-      const message = genError instanceof Error ? genError.message : "Generator failed";
-        
-        throw new Error(`Schema documentation generation failed: ${message}`); 
+      const message =
+        genError instanceof Error ? genError.message : "Generator failed";
+
+      throw new Error(`Schema documentation generation failed: ${message}`);
     }
 
     // 5. Read the generated Markdown file
@@ -257,7 +285,8 @@ export async function POST(request: Request) {
 
     // 7. Return the Markdown content
     return NextResponse.json({ markdown });
-  } catch (error: unknown) { // Changed to unknown
+  } catch (error: unknown) {
+    // Changed to unknown
     console.error("API Error generating schema doc:", error);
 
     // Ensure cleanup happens even on error

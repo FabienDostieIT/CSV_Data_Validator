@@ -1,11 +1,7 @@
 "use client";
 
 import React, { memo, useCallback } from "react";
-import {
-  AlertTriangle,
-  XCircle,
-  ChevronDown,
-} from "lucide-react";
+import { AlertTriangle, XCircle, ChevronDown } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -13,20 +9,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 // Remove unused interface extension
-// interface ErrorObjectWithRange extends ErrorObject { 
+// interface ErrorObjectWithRange extends ErrorObject {
 //   _range?: { ... };
 // }
 
 // Error Item Component for SCHEMA errors - Removed previously
-// interface SchemaErrorItemProps { ... } 
+// interface SchemaErrorItemProps { ... }
 // const SchemaErrorItem: React.FC<SchemaErrorItemProps> = ({ error, _index }) => { ... };
 
 // --- ValidationResults Component (Updated) ---
@@ -50,9 +41,15 @@ const ValidationResults = memo(function ValidationResults({
   setScrollToLine,
 }: ValidationResultsProps) {
   const renderRow = useCallback(
-    (result: { row: number; errors: { property?: string; message: string }[]; warnings: { property?: string; message: string }[]; },
-     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-     _idx: number) => {
+    (
+      result: {
+        row: number;
+        errors: { property?: string; message: string }[];
+        warnings: { property?: string; message: string }[];
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _idx: number,
+    ) => {
       const rowSeverity = result.errors.length > 0 ? "error" : "warning";
       const displayRowNumber = result.row;
       return (
@@ -165,14 +162,15 @@ const ValidationResults = memo(function ValidationResults({
         </Accordion>
       );
     },
-    [openAccordionValue, setOpenAccordionValue, setHighlightedCsvLine, setScrollToLine], // Dependencies for useCallback
+    [
+      openAccordionValue,
+      setOpenAccordionValue,
+      setHighlightedCsvLine,
+      setScrollToLine,
+    ], // Dependencies for useCallback
   );
 
-  return (
-    <>
-      {results.map((result, index) => renderRow(result, index))}
-    </>
-  );
+  return <>{results.map((result, index) => renderRow(result, index))}</>;
 });
 
 export default ValidationResults;

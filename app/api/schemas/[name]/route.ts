@@ -1,64 +1,63 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-// Correct the import for the 'jsonc' library version 2.0.0
-import { jsonc } from "jsonc";
+import { parse } from "jsonc-parser";
 
-// Remove the explicit RouteContext interface
-// interface RouteContext {
-//   params: {
-//     name: string;
-//   };
-// }
+// Get the schema directory path
+const getSchemaDirectory = () => {
+  return path.join(process.cwd(), "schemas", "v1");
+};
+
+interface Context {
+  params: {
+    name: string;
+  };
+}
 
 export async function GET(
-  _request: Request, // Prefix with _ if not used
-  // Use the correct Next.js 15 type signature with Promise
-  { params }: { params: Promise<{ name: string }> }, 
+  request: NextRequest,
+  { params }: Context
 ) {
-  // Remove the explicit destructuring added in the previous step
-  // const { params } = context;
-  console.log("[API /api/schemas/[name]] Waiting for params...");
-
-  // Ensure params is awaited (was likely correct before, but confirming)
-  const awaitedParams = await params;
-  console.log(
-    "[API /api/schemas/[name]] Incoming params resolved:",
-    awaitedParams,
-  );
-
-  // Extract name from awaited params
-  const { name } = awaitedParams;
-
-  // Optional: Basic safety check on the name string
+  console.log("[API /api/schemas/[name]] Received params:", params);
+  
+  // Validate that params.name is a string and not an object
   if (
-    !name ||
-    !name.endsWith(".json") ||
-    name.includes("/") ||
-    name.includes("\\")
+    !params.name ||
+    typeof params.name !== "string" ||
+    params.name === "[object Object]"
   ) {
-    console.error(`[API /api/schemas/[name]] Invalid name received: ${name}`);
+    console.log(
+      "[API /api/schemas/[name]] Invalid name received:",
+      params.name,
+    );
     return NextResponse.json(
-      { error: "Invalid schema name format." },
+      { error: "Invalid schema name provided" },
       { status: 400 },
     );
   }
 
+  // Ensure the file has .json extension
+  const schemaName = params.name.endsWith(".json") 
+    ? params.name 
+    : `${params.name}.json`;
+    
+  console.log(
+    `[API /api/schemas/${schemaName}] Reading file: ${path.join(getSchemaDirectory(), schemaName)}`,
+  );
+
   try {
-    // Using path.join for potentially better relative path handling
-    const schemasDir = path.join(process.cwd(), "schemas", "v1");
-    const filePath = path.join(schemasDir, name);
+    const filePath = path.join(getSchemaDirectory(), schemaName);
 
-    console.log(`[API /api/schemas/${name}] Reading file: ${filePath}`);
-
-    // Security check: Ensure the resolved path is still within the intended directory
-    if (!filePath.startsWith(schemasDir)) {
-      console.error(
-        `[API /api/schemas/${name}] Attempted path traversal: ${filePath}`,
+    // Check if file exists first
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      console.log(
+        `[API /api/schemas/${schemaName}] Error reading schema file: ${error}`,
       );
       return NextResponse.json(
-        { error: "Invalid schema name" },
-        { status: 400 },
+        { error: `Schema file not found: ${schemaName}` },
+        { status: 404 },
       );
     }
 
@@ -66,58 +65,22 @@ export async function GET(
 
     // Parse JSONC (JSON with comments) for validation
     try {
-      // Use the imported jsonc object directly
-      if (typeof jsonc.parse === 'function') { 
-        // Call parse via the imported jsonc object
-        jsonc.parse(fileContent); 
-      } else {
-        // Handle the case where jsonc or jsonc.parse is not loaded correctly
-        console.error(`[API /api/schemas/${name}] jsonc.parse function not found.`);
-        throw new Error("JSONC parsing library failed to load.");
-      }
-    } catch (parseError: unknown) { // Catch specific parsing error
-      // Handle JSON parsing errors
-      console.error(`Error parsing schema file ${name}:`, parseError);
-      // Provide a more specific error message
-      // const message = parseError instanceof Error ? parseError.message : "Invalid JSONC format"; // Removed unused variable
-      // Check if parseError has a relevant property like 'message' before using it
-      let details = "Invalid JSONC format";
-      if (parseError instanceof Error) {
-        details = parseError.message;
-      } else if (typeof parseError === 'object' && parseError !== null && 'message' in parseError) {
-        // Handle cases where it might be an error-like object but not an Error instance
-        details = String((parseError as { message: unknown }).message);
-      }
+      const parsedSchema = parse(fileContent);
+      return NextResponse.json(parsedSchema);
+    } catch (error) {
+      console.error(
+        `[API /api/schemas/${schemaName}] JSON parsing error:`,
+        error,
+      );
       return NextResponse.json(
-        { error: "Schema file is not valid JSON", details: details }, // Use checked details
-        { status: 500 },
+        { error: "Invalid JSON schema format" },
+        { status: 400 },
       );
     }
-    // Return the original content if parsing succeeded
-    return NextResponse.json({ content: fileContent });
-  } catch (error: unknown) {
-    console.error(
-      `[API /api/schemas/${name}] Error reading schema file:`,
-      error,
-    );
-    // Add type guards for accessing properties
-    let errorCode: string | undefined;
-    let errorMessage: string | undefined = "Unknown error reading file";
-
-    if (typeof error === 'object' && error !== null) {
-      if ('code' in error) {
-        errorCode = String(error.code); // Convert potential non-string code
-      }
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-    }
-
-    if (errorCode === "ENOENT") {
-      return NextResponse.json({ error: "Schema not found" }, { status: 404 });
-    }
+  } catch (error) {
+    console.error(`[API /api/schemas/${schemaName}] Server error:`, error);
     return NextResponse.json(
-      { error: "Failed to read schema file", details: errorMessage }, // Use guarded message
+      { error: "Failed to read schema file" },
       { status: 500 },
     );
   }

@@ -2,30 +2,46 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+// Get the schemas directory
+const getSchemasDirectory = () => {
+  return path.join(process.cwd(), "schemas", "v1");
+};
+
+// Interface for schema objects
+interface SchemaInfo {
+  name: string;
+  filename: string;
+}
+
 export async function GET() {
+  const schemasDir = path.join(process.cwd(), "schemas", "v1");
+  console.log(`[API /api/schemas] Reading directory: ${schemasDir}`);
+
   try {
-    const schemasDir = path.join(process.cwd(), "schemas", "v1");
-    console.log(`[API /api/schemas] Reading directory: ${schemasDir}`);
+    const files = await fs.readdir(schemasDir);
+    console.log(`[API /api/schemas] Found files: ${files.join(", ")}`);
 
-    const allFiles = await fs.readdir(schemasDir);
-    console.log(`[API /api/schemas] Found files: ${allFiles.join(', ')}`);
-
-    const jsonFiles = allFiles.filter((f) => typeof f === 'string' && f.endsWith(".json"));
-    console.log(`[API /api/schemas] Filtered JSON files: ${jsonFiles.join(', ')}`);
+    const jsonFiles = files.filter(
+      (file) => file.endsWith(".json") && !file.includes(":Zone.Identifier"),
+    );
+    console.log(
+      `[API /api/schemas] Filtered JSON files: ${jsonFiles.join(", ")}`,
+    );
 
     const schemas = jsonFiles.map((filename) => ({
-      name: filename.replace(/\.json$/, ""),
+      name: filename.replace(".json", ""),
       filename,
     }));
 
-    console.log(`[API /api/schemas] Mapped schemas:`, schemas);
+    console.log(
+      `[API /api/schemas] Mapped schemas: ${JSON.stringify(schemas, null, 2)}`,
+    );
 
-    return NextResponse.json({ schemas: jsonFiles });
-  } catch (error: unknown) {
-    console.error("[API /api/schemas] Error:", error);
-    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(schemas);
+  } catch (error) {
+    console.error("[API /api/schemas] Error reading schema directory:", error);
     return NextResponse.json(
-      { error: "Failed to retrieve schemas", details: message },
+      { error: "Failed to read schemas directory" },
       { status: 500 },
     );
   }

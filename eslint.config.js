@@ -1,34 +1,5 @@
 // eslint.config.js
 import js from "@eslint/js";
-<<<<<<< HEAD
-import next from "eslint-config-next";
-
-export default [
-  js(),
-  ...next(),
-  {
-    files: ["**/*.ts", "**/*.tsx"],
-    languageOptions: {
-      parser: "@typescript-eslint/parser",
-      parserOptions: {
-        project: "./tsconfig.json",
-        tsconfigRootDir: __dirname,
-        ecmaVersion: 2020,
-        sourceType: "module",
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    plugins: {
-      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
-    },
-    extends: [
-      "plugin:@typescript-eslint/recommended",
-      "plugin:@typescript-eslint/recommended-requiring-type-checking",
-    ],
-    rules: {},
-  },
-];
-=======
 import tseslint from "typescript-eslint";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -97,21 +68,20 @@ export default tseslint.config(
   // Global ignores (optional, but good practice)
   {
     ignores: [
-        "node_modules/",
-        ".next/",
-        "dist/",
-        "build/",
-        "coverage/",
-        "**/*.config.js", // Ignore config files themselves
-        "**/*.config.cjs",
-        "next-env.d.ts",
-        "jest.config.js",
-        "jest.polyfills.js",
-        "setupTests.js",
-        "workers/",
-        "scripts/",
-        "*.mjs"
-       ],
-  }
-); 
->>>>>>> fix/build-dependencies
+      "node_modules/",
+      ".next/",
+      "dist/",
+      "build/",
+      "coverage/",
+      "**/*.config.js", // Ignore config files themselves
+      "**/*.config.cjs",
+      "next-env.d.ts",
+      "jest.config.js",
+      "jest.polyfills.js",
+      "setupTests.js",
+      "workers/",
+      "scripts/",
+      "*.mjs",
+    ],
+  },
+);

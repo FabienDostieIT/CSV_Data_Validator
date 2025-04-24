@@ -5,7 +5,13 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/$1",
   },
   transform: {
-    '^.+\\.[jt]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json', compilerOptions: { jsx: 'react-jsx' } }],
+    "^.+\\.[jt]sx?$": [
+      "ts-jest",
+      {
+        tsconfig: "<rootDir>/tsconfig.jest.json",
+        compilerOptions: { jsx: "react-jsx" },
+      },
+    ],
   },
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "json", "node"],
   setupFiles: ["<rootDir>/jest.polyfills.js"],

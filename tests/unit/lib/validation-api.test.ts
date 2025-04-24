@@ -33,9 +33,9 @@ describe("validation-api client", () => {
     // Correct mock data to be string[]
     const mockSchemas: string[] = ["schema1.json", "schema2.json"];
     // Mock fetch to return a Response-like object with ok: true
-    (global.fetch as jest.Mock).mockResolvedValueOnce({ 
-      ok: true, 
-      json: () => Promise.resolve({ schemas: mockSchemas }) // Ensure nested structure matches API
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ schemas: mockSchemas }), // Ensure nested structure matches API
     });
     const result = await getAvailableSchemas();
     expect(fetch).toHaveBeenCalledWith("/api/schemas");
