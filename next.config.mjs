@@ -9,11 +9,10 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Enable static export for GitHub Pages
-  // Configure basePath and assetPrefix for GitHub Pages
-  // Replace 'your-username' and 'your-repo-name' with your actual GitHub username and repository name
-  basePath: process.env.NODE_ENV === 'production' ? '/JSON_Schema_Validator' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/JSON_Schema_Validator/' : '/',
+  // Configure basePath and assetPrefix conditionally
+  // Use basePath for GitHub Pages only in production & when VERCEL is not set
+  basePath: process.env.NODE_ENV === 'production' && !process.env.VERCEL ? '/JSON_Schema_Validator' : '',
+  assetPrefix: process.env.NODE_ENV === 'production' && !process.env.VERCEL ? '/JSON_Schema_Validator/' : '/',
   
   // Add eslint configuration to ignore during builds
   eslint: {

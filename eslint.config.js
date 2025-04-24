@@ -82,6 +82,7 @@ export default tseslint.config(
       "workers/",
       "scripts/",
       "*.mjs",
+      "lib/api-client.js", // Ignore JS version of api-client
     ],
   },
 );

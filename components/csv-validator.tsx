@@ -56,7 +56,7 @@ import ValidationResults from "@/components/validation-results";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { getSchemasList, getSchemaByName, generateSchemaDocumentation } from '@/lib/api-client';
+import { getSchemasList, getSchemaByName, generateSchemaDocumentation, type SchemaObject } from '@/lib/api-client';
 
 // --- Web Worker Setup ---
 const getWorker = (() => {
@@ -182,16 +182,6 @@ interface RowValidationResults {
   row: number;
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
-}
-
-// Interface for the schema list API response
-interface SchemaObject {
-  // Define the object structure
-  name: string;
-  filename: string;
-}
-interface SchemaListResponse {
-  schemas: SchemaObject[]; // Expect an array of SchemaObjects
 }
 
 // Interface for single schema content API response
@@ -499,51 +489,41 @@ export default function CsvValidator() {
   // --- Effect to fetch schema list on mount --- // Keep uncommented for now
   useEffect(() => {
     const fetchSchemaList = async () => {
+      if (schemaListCache.list) {
+        console.log("Using cached schema list");
+        setAvailableSchemaNames(schemaListCache.list);
+        setIsLoadingSchemaList(false);
+        return;
+      }
+
       setIsLoadingSchemaList(true);
+
       try {
-        if (schemaListCache.list) {
-          setAvailableSchemaNames(schemaListCache.list);
+        console.log("Fetching schema list...");
+        const schemas: SchemaObject[] = await getSchemasList();
+        console.log("Fetched schemas:", schemas);
+
+        if (!schemas || !Array.isArray(schemas) || schemas.length === 0) {
           setIsLoadingSchemaList(false);
           return;
         }
-        
-        // Use our new API client instead of direct fetch
-        const data = await getSchemasList();
-        
-        // Ensure data is an array before sorting/mapping
-        if (!Array.isArray(data)) {
-          throw new Error("API response for schemas is not an array.");
-        }
-        // Sort based on the 'name' property for user-friendly display
-        const sortedSchemaObjects = data.sort((a, b) =>
-          a.name.localeCompare(b.name),
-        );
-        // Extract filenames for internal use (state, selection values)
-        const schemaFilenames = sortedSchemaObjects.map((s) => s.filename);
 
-        schemaListCache.list = schemaFilenames; // Cache the filenames
-        setAvailableSchemaNames(schemaFilenames); // Set state with filenames
-
-        // Automatically select the first schema *filename* if available
-        if (schemaFilenames.length > 0 && !selectedSchemaName) {
-          setSelectedSchemaName(schemaFilenames[0]); // Auto-select the filename string
-        }
-      } catch (error: unknown) {
+        // Extract schema names for dropdown
+        const schemaNames: string[] = schemas.map((schema) => schema.name);
+        setAvailableSchemaNames(schemaNames);
+        // Cache for future use
+        schemaListCache.list = schemaNames;
+        // Make sure to set loading to false after successful load
+        setIsLoadingSchemaList(false);
+      } catch (error) {
         console.error("Error fetching schema list:", error);
-        void toast({
-          title: "Error",
-          description:
-            "Could not fetch the list of available schemas. Please check the API or try again later.",
-          variant: "destructive",
-        });
-      } finally {
         setIsLoadingSchemaList(false);
       }
     };
 
     void fetchSchemaList();
     // Add dependencies here if needed, e.g., if fetchSchemaList depends on props or other state
-  }, [toast, selectedSchemaName]); // Added toast and selectedSchemaName as dependencies
+  }, [toast]); // Added toast as dependency
 
   // --- Effect to fetch schema content when selection changes --- // Uncomment
   useEffect(() => {

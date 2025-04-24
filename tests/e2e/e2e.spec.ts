@@ -34,8 +34,8 @@ test.describe("CSV Data Validator E2E", () => {
     await page.goto("http://localhost:3000/");
 
     // Mock the API response for schema list for THIS test too
-    await page.route("***/api/schemas", (route) => {
-      route.fulfill({
+    await page.route("***/api/schemas", async (route) => {
+      await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
@@ -69,8 +69,8 @@ test.describe("CSV Data Validator E2E", () => {
     await page.goto("http://localhost:3000/");
 
     // Mock the API response for schema list
-    await page.route("***/api/schemas", (route) => {
-      route.fulfill({
+    await page.route("***/api/schemas", async (route) => {
+      await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
