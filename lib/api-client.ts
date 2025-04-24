@@ -9,6 +9,14 @@ export interface SchemaObject {
   filename: string;
 }
 
+// Define interface for schema property details
+interface SchemaPropertyDetails {
+  description?: string;
+  type?: string;
+  examples?: unknown[];
+  [key: string]: unknown;
+}
+
 /**
  * Gets the base URL for API requests, adjusting for GitHub Pages in production
  */
@@ -34,7 +42,7 @@ export async function getSchemasList(): Promise<SchemaObject[]> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    return await response.json() as SchemaObject[];
   } catch (error) {
     console.error("Error fetching schemas list:", error);
     throw error;
@@ -58,7 +66,7 @@ export async function getSchemaByName(schemaName: string): Promise<Record<string
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    return await response.json() as Record<string, unknown>;
   } catch (error) {
     console.error(`Error fetching schema ${schemaName}:`, error);
     throw error;
@@ -86,7 +94,7 @@ export async function generateSchemaDocumentation(schema: Record<string, unknown
       if (schema.properties && typeof schema.properties === 'object') {
         markdown += '## Properties\n\n';
         
-        for (const [propName, propDetails] of Object.entries(schema.properties as Record<string, any>)) {
+        for (const [propName, propDetails] of Object.entries(schema.properties as Record<string, SchemaPropertyDetails>)) {
           markdown += `### ${propName}\n\n`;
           
           if (propDetails.description) {
@@ -124,7 +132,7 @@ export async function generateSchemaDocumentation(schema: Record<string, unknown
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    return await response.json() as {markdown: string};
   } catch (error) {
     console.error('Error fetching schema documentation:', error);
     throw error;

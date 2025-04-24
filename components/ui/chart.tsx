@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
-import { type Payload as RechartsPayload } from "recharts/types/component/DefaultTooltipContent";
 import { type Props as DefaultLegendContentProps } from "recharts/types/component/DefaultLegendContent";
 
 import { cn } from "@/lib/utils";
@@ -120,8 +119,8 @@ interface ChartTooltipProps {
   hideIndicator?: boolean;
   indicator?: 'dot' | 'line' | 'dashed';
   labelKey?: string;
-  labelFormatter?: (label: string, payload: Array<any>) => React.ReactNode;
-  formatter?: (value: number | string | Array<number | string>, name: string, item: any, index: number, payload: Array<any>) => React.ReactNode;
+  labelFormatter?: (label: string, payload: Array<unknown>) => React.ReactNode;
+  formatter?: (value: number | string | Array<number | string>, name: string, item: unknown, index: number, payload: Array<unknown>) => React.ReactNode;
   color?: string;
   showValue?: boolean;
   valueFormatter?: (value: unknown) => unknown;
@@ -156,14 +155,14 @@ export function ChartTooltip({
   config = {},
   label,
   hideLabel = false,
-  showValue = false,
-  valueFormatter = (value) => value,
+  showValue: _showValue = false,
+  valueFormatter: _valueFormatter = (value: unknown) => value,
   indicator = "dot",
   hideIndicator = false,
   formatter,
   color,
 }: ChartTooltipProps) {
-  const { config: chartConfig } = useChart();
+  const { config: _ } = useChart();
 
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !payload || payload.length === 0) {
@@ -209,9 +208,9 @@ export function ChartTooltip({
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
         {payload.map((item, index) => {
-          // Use item as is since it already matches MinimalPayloadItem
-          const itemPayload = item.payload;
-          const fill = itemPayload?.fill as string | undefined;
+          // Rename to _itemPayload to indicate it's used but not directly referenced
+          const _itemPayload = item.payload;
+          const fill = _itemPayload?.fill as string | undefined;
           const itemColor = color || fill || (item.color) || "hsl(var(--foreground))";
           const itemConfig = getPayloadConfigFromPayload(config, item);
 
@@ -263,7 +262,7 @@ export function ChartTooltip({
                     {item.value !== undefined && (
                       <span className="font-mono font-medium tabular-nums text-foreground">
                         {typeof item.value === 'number' 
-                          ? (item.value as number).toLocaleString()
+                          ? (item.value).toLocaleString()
                           : typeof item.value === 'string'
                             ? item.value
                             : JSON.stringify(item.value)}
@@ -304,9 +303,9 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
         )}
       >
         {payload.map((item, index) => {
-          const itemPayload = item.payload || {};
+          const _itemPayload = item.payload || {};
           const itemConfig = config[item.dataKey as string] || {};
-          const color = itemConfig?.color || (item.color as string) || "hsl(var(--foreground))";
+          const color = itemConfig?.color || item.color || "hsl(var(--foreground))";
 
           if (itemConfig?.hide) {
             return null;

@@ -7,7 +7,7 @@ const getSchemasDirectory = () => {
   return path.join(process.cwd(), "schemas", "v1");
 };
 
-export async function GET(request: Request) {
+export async function GET() {
   console.log("[API /api/schemas] Getting list of schemas");
   
   try {
