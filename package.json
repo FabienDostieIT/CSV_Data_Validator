@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "prepare": "husky install",
     "prettier": "prettier --write .",
-    "test": "jest",
+    "test": "ts-jest",
     "e2e": "playwright test",
     "generate-static-api": "node scripts/generate-static-api.mjs",
     "build:static": "npm run generate-static-api && next build",
