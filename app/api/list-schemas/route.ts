@@ -20,9 +20,11 @@ export async function GET() {
   // }
 
   try {
-    // Adjust path for potentially different cwd() in Vercel - read directly from ./public relative to project root
-    const schemasDirRelative = path.join("public", "api", "schemas"); // Path relative to project root
-    const files = await fs.readdir(schemasDirRelative);
+    // Adjust path for potentially different cwd() in Vercel - try path.resolve
+    // const schemasDirRelative = path.join("public", "api", "schemas"); // Path relative to project root
+    const schemasDir = path.resolve("./public/api/schemas");
+    console.log(`Attempting to read schema directory: ${schemasDir}`); // Add logging
+    const files = await fs.readdir(schemasDir);
 
     // Filter to only include JSON files and exclude Zone.Identifier files
     const schemaFiles = files.filter(
