@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
@@ -15,7 +15,7 @@ function safeJoin(base: string, target: string): string | null {
 
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { name: string } }
 ) {
   const schemaName = params.name;
