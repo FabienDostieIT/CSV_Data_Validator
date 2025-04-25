@@ -128,30 +128,15 @@ test.describe("CSV Data Validator E2E", () => {
       await dropdownTrigger.click();
 
       // Check if the first option becomes visible
-      const optionLocator = page.locator('[role="option"]').first();
-      const optionVisible = await optionLocator.isVisible({ timeout: 5000 });
-
-      if (optionVisible) {
-        await optionLocator.click(); // Click the actual option
-      } else {
-        // Fallback if option didn't become visible (e.g., rendering issue in test)
-        console.log("Dropdown option not visible, using fallback evaluation.");
-        await page.evaluate(() => {
-          // Mock schema selection programmatically
-          window.dispatchEvent(
-            new CustomEvent("test:schema-selected", {
-              detail: { schema: "sample.json" },
-            }),
-          );
-        });
-      }
+      const optionLocator = page.locator('[role="option"]', { hasText: "sample.json" });
+      await expect(optionLocator).toBeVisible({ timeout: 10000 });
+      await optionLocator.click();
 
       // Now check if the validate button becomes enabled
-      // const validateButton: Locator = page.getByRole('button', { name: /validate data/i }); // Removed unused variable
+      const validateButton: Locator = page.getByRole('button', { name: /validate data/i });
 
       // Implicitly check enablement by attempting to click later.
-      // Remove the explicit expect assertion that caused lint errors.
-      // await expect(validateButton).toBeEnabled({ timeout: 10000 });
+      await expect(validateButton).toBeEnabled({ timeout: 10000 });
 
       // We will click this button in the next test step if this test passes
     },
@@ -194,30 +179,15 @@ test.describe("CSV Data Validator E2E", () => {
       await dropdownTrigger.click();
 
       // Check if the first option becomes visible
-      const optionLocator = page.locator('[role="option"]').first();
-      const optionVisible = await optionLocator.isVisible({ timeout: 5000 });
-
-      if (optionVisible) {
-        await optionLocator.click(); // Click the actual option
-      } else {
-        // Fallback if option didn't become visible (e.g., rendering issue in test)
-        console.log("Dropdown option not visible, using fallback evaluation.");
-        await page.evaluate(() => {
-          // Mock schema selection programmatically
-          window.dispatchEvent(
-            new CustomEvent("test:schema-selected", {
-              detail: { schema: "sample.json" },
-            }),
-          );
-        });
-      }
+      const optionLocator = page.locator('[role="option"]', { hasText: "sample.json" });
+      await expect(optionLocator).toBeVisible({ timeout: 10000 });
+      await optionLocator.click();
 
       // Now check if the validate button becomes enabled
-      // const validateButton: Locator = page.getByRole('button', { name: /validate data/i }); // Removed unused variable
+      const validateButton: Locator = page.getByRole('button', { name: /validate data/i });
 
-      // The click action below will implicitly wait for the button to be enabled.
-      // Remove the explicit expect assertion that caused lint errors.
-      // await expect(validateButton).toBeEnabled({ timeout: 10000 });
+      // Implicitly check enablement by attempting to click later.
+      await expect(validateButton).toBeEnabled({ timeout: 10000 });
 
       // Ensure button is correctly typed before clicking
       const validateButton: Locator = page.getByRole("button", {
