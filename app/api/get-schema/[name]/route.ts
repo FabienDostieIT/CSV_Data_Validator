@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
@@ -20,12 +20,8 @@ function safeJoin(base: string, target: string): string | null {
   return null; // Path traversal detected or invalid path
 }
 
-export async function GET(
-  // Remove the request parameter as it's unused
-  // request: NextRequest,
-  { params }: { params: { name: string } } // Use standard destructuring for the context/params
-) {
-  const schemaName = params.name; // Access name via params
+export async function GET(request: Request, { params }: { params: { name: string } }) {
+  const schemaName = params.name;
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
@@ -49,7 +45,7 @@ export async function GET(
        return NextResponse.json({ error: "Invalid schema name path" }, { status: 400 });
     }
 
-    console.log(`Attempting to read schema file: ${filePath}`); // Add logging
+    console.log(`Attempting to read schema file: ${filePath}`);
 
     const fileContent = await fs.readFile(filePath, "utf-8");
     // Assert the type after parsing JSON to satisfy eslint

@@ -29,6 +29,19 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  
+  // Configure build cache
+  experimental: {
+    turbotrace: {
+      enabled: true,
+    },
+  },
+  
+  // Increase memory limit for builds
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 4,
+  },
 };
 
 export default nextConfig;
