@@ -45,10 +45,11 @@ jobs:
         run: pnpm format --check
 
       - name: Build
-        run: pnpm build
+        run: pnpm build --debug
         env:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_OPTIONS: "--max_old_space_size=4096"
+          NEXTJS_DEBUG: 1
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps

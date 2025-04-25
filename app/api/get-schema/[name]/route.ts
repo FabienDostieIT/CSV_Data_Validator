@@ -10,7 +10,7 @@ import path from "path";
 // }
 
 // Helper function to safely join paths and prevent traversal
-function safeJoin(base: string, target: string): string | null {
+function safeJoin(base, target) {
   const targetPath = "." + path.normalize("/" + target);
   const joinedPath = path.join(base, targetPath);
   // Check if the resolved path is still within the base directory
@@ -20,8 +20,9 @@ function safeJoin(base: string, target: string): string | null {
   return null; // Path traversal detected or invalid path
 }
 
-export async function GET(request: Request, { params }: { params: { name: string } }) {
-  const schemaName = params.name;
+// Using named export without explicit type annotations
+export async function GET(req, context) {
+  const schemaName = context.params?.name;
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
@@ -48,15 +49,16 @@ export async function GET(request: Request, { params }: { params: { name: string
     console.log(`Attempting to read schema file: ${filePath}`);
 
     const fileContent = await fs.readFile(filePath, "utf-8");
-    // Assert the type after parsing JSON to satisfy eslint
-    const schemaJson = JSON.parse(fileContent) as Record<string, unknown>;
+    // Parse JSON without type assertion
+    const schemaJson = JSON.parse(fileContent);
 
     return NextResponse.json(schemaJson);
   } catch (error) {
     console.error(`Error fetching schema ${safeSchemaName}:`, error);
     if (
       error instanceof Error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
+      "code" in error && 
+      error.code === "ENOENT"
     ) {
       return NextResponse.json(
         { error: `Schema '${safeSchemaName}' not found.` },

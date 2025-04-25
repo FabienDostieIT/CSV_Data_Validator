@@ -30,17 +30,24 @@ const nextConfig = {
     unoptimized: true,
   },
   
-  // Configure build cache
+  // Configure build optimizations
   experimental: {
-    turbotrace: {
-      enabled: true,
-    },
+    optimizeCss: true,
+    optimizePackageImports: ['react', 'react-dom'],
   },
   
   // Increase memory limit for builds
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 4,
+  },
+  
+  // Minify
+  swcMinify: true,
+  
+  // Disable telemetry
+  typescript: {
+    ignoreBuildErrors: false,
   },
 };
 
