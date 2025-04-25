@@ -18,20 +18,17 @@ function isValidSchemaObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// The standard Next.js App Router route handler type signature
-export async function GET(
-  request: Request,
-  { params }: { params: { name: string } }
-): Promise<Response> {
+// Use the simplest form for Next.js 15 compatibility
+export async function GET(request, context) {
   // Extract schema name from URL params
-  const schemaName: string = params.name;
+  const schemaName = context.params.name;
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
   }
 
   // Sanitize the name: remove .json extension and potentially harmful characters
-  const safeSchemaName: string = schemaName
+  const safeSchemaName = schemaName
     .replace(/\.json$/i, "") // Case-insensitive removal of .json
     .replace(/[^\w-]+/g, ""); // Allow only word chars and hyphen
 
@@ -40,8 +37,8 @@ export async function GET(
   }
 
   try {
-    const schemasDir: string = path.resolve("./public/api/schemas");
-    const filePath: string | null = safeJoin(schemasDir, `${safeSchemaName}.json`);
+    const schemasDir = path.resolve("./public/api/schemas");
+    const filePath = safeJoin(schemasDir, `${safeSchemaName}.json`);
 
     if (!filePath) {
       console.error(`Path traversal attempt or invalid path for schema: ${schemaName}`);
@@ -50,12 +47,12 @@ export async function GET(
 
     console.log(`Attempting to read schema file: ${filePath}`);
 
-    const fileContent: string = await fs.readFile(filePath, "utf-8");
+    const fileContent = await fs.readFile(filePath, "utf-8");
     
     // Safely parse and validate the JSON schema
-    let schemaJson: Record<string, unknown>;
+    let schemaJson;
     try {
-      const parsed: unknown = JSON.parse(fileContent);
+      const parsed = JSON.parse(fileContent);
       
       if (!isValidSchemaObject(parsed)) {
         return NextResponse.json(
@@ -74,14 +71,14 @@ export async function GET(
     }
 
     return NextResponse.json(schemaJson);
-  } catch (error: unknown) {
+  } catch (error) {
     console.error(`Error fetching schema ${safeSchemaName}:`, error);
     
-    // Narrowing error type with type guard
+    // Check for file not found error
     if (
       error instanceof Error &&
       'code' in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
+      error.code === "ENOENT"
     ) {
       return NextResponse.json(
         { error: `Schema '${safeSchemaName}' not found.` },

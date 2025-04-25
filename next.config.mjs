@@ -42,10 +42,7 @@ const nextConfig = {
     pagesBufferLength: 4,
   },
   
-  // Minify
-  swcMinify: true,
-  
-  // Disable telemetry
+  // TypeScript settings
   typescript: {
     ignoreBuildErrors: false,
   },
