@@ -246,7 +246,8 @@ try {
             valid = validate(processedRowData);
           } catch (err) {
             console.error(
-              `Worker: Error during conversion/structure for row ${csvRowNum}:`,
+              "Worker: Error during conversion/structure for row %s:",
+              csvRowNum,
               err,
             );
             conversionErrorMsg = err.message || "Unknown conversion error";
