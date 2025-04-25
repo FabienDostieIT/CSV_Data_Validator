@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined, // Limit workers in CI
   reporter: "html", // Reporter to use
   use: {
-    baseURL: "http://127.0.0.1:3000", // Use explicit IP for baseURL
+    baseURL: "http://127.0.0.1:3000/JSON_Schema_Validator", // Add basePath
     trace: "retain-on-failure", // Record trace if test fails
   },
   webServer: {
