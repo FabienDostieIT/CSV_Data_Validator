@@ -189,10 +189,11 @@ test.describe("CSV Data Validator E2E", () => {
       // Implicitly check enablement by attempting to click later.
       await expect(validateButton).toBeEnabled({ timeout: 10000 });
 
-      // Ensure button is correctly typed before clicking
-      const validateButton: Locator = page.getByRole("button", {
-        name: /validate data/i,
-      });
+      // Ensure button is visible before clicking
+      // Remove the duplicate declaration:
+      // const validateButton: Locator = page.getByRole("button", {
+      //   name: /validate data/i,
+      // });
 
       // Add explicit visibility check before clicking
       await expect(validateButton).toBeVisible();
