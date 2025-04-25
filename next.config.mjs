@@ -32,7 +32,7 @@ const nextConfig = {
   
   // Configure build optimizations
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
     optimizePackageImports: ['react', 'react-dom'],
   },
   
