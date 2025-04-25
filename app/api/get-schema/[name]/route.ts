@@ -2,12 +2,12 @@ import { NextResponse, NextRequest } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
-// Explicitly define the type for the context parameter
-interface RouteContext {
-  params: {
-    name: string;
-  };
-}
+// Remove unused interface definition
+// interface RouteContext {
+//   params: {
+//     name: string;
+//   };
+// }
 
 // Helper function to safely join paths and prevent traversal
 function safeJoin(base: string, target: string): string | null {
@@ -20,12 +20,12 @@ function safeJoin(base: string, target: string): string | null {
   return null; // Path traversal detected or invalid path
 }
 
-
 export async function GET(
-  request: NextRequest,
-  context: RouteContext // Use the explicitly defined type
+  // Remove the request parameter as it's unused
+  // request: NextRequest,
+  { params }: { params: { name: string } } // Use standard destructuring for the context/params
 ) {
-  const schemaName = context.params.name;
+  const schemaName = params.name; // Access name via params
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
