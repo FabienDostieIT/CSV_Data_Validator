@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+// Next.js route handlers have incompatible types between ESLint and the Next.js build system
+// These directives are necessary to make the route handler work with both
+
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
