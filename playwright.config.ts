@@ -15,7 +15,7 @@ export default defineConfig({
     command: "pnpm start", // Command to start the dev server
     url: "http://localhost:3000", // URL to wait for
     reuseExistingServer: !process.env.CI, // Reuse server locally, start fresh in CI
-    timeout: 120 * 1000, // Increase timeout for server start
+    timeout: 240 * 1000, // Increase timeout for server start (4 minutes)
   },
   // Optional: Configure projects for major browsers
   // projects: [ { name: 'chromium', use: { ...devices['Desktop Chrome'] } } ],
