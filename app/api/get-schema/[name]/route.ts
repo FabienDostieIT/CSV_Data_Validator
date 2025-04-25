@@ -16,9 +16,9 @@ function safeJoin(base: string, target: string): string | null {
 
 export async function GET(
   request: Request,
-  context: { params: { name: string } }
+  { params }: { params: { name: string } }
 ) {
-  const schemaName = context.params.name;
+  const schemaName = params.name;
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
