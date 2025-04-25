@@ -65,7 +65,7 @@
     "jsonc-parser": "^3.0.0",
     "lucide-react": "^0.487.0",
     "monaco-editor": "^0.52.2",
-    "next": "^15.2.4",
+    "next": "15.2.4",
     "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
     "papaparse": "^5.5.2",

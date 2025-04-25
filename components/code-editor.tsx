@@ -5,6 +5,22 @@ import Editor, { Monaco } from "@monaco-editor/react";
 import { useTheme } from "@/components/theme-provider";
 import * as monaco from "monaco-editor";
 
+// Define custom light theme based on Zinc palette - REMOVE FROM HERE
+// monaco.editor.defineTheme("custom-light-grey", {
+//   base: "vs", // Inherit syntax highlighting from the default light theme
+//   inherit: true,
+//   rules: [], // Keep default rules
+//   colors: {
+//     "editor.background": "#f0f0f2", // Approx Zinc 100 (hsl(240 5.2% 93.9%))
+//     "editor.foreground": "#18181b", // Approx Zinc 950 (hsl(240 5.9% 10%))
+//     "editorLineNumber.foreground": "#a1a1aa", // Approx Zinc 400
+//     "editorLineNumber.activeForeground": "#3f3f46", // Approx Zinc 700
+//     // Keep other colors default from 'vs' or customize further if needed
+//     // Example: setting cursor color
+//     // "editorCursor.foreground": "#000000",
+//   },
+// });
+
 // Define the structure for error decorations
 export interface EditorErrorDecoration {
   range: monaco.IRange;
@@ -45,6 +61,24 @@ export default function CodeEditor({
   ) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
+
+    // Define custom light theme HERE, inside onMount
+    monacoInstance.editor.defineTheme("custom-light-grey", {
+      base: "vs",
+      inherit: true,
+      rules: [],
+      colors: {
+        "editor.background": "#f0f0f2",
+        "editor.foreground": "#18181b",
+        "editorLineNumber.foreground": "#a1a1aa",
+        "editorLineNumber.activeForeground": "#3f3f46",
+      },
+    });
+
+    // Explicitly set the theme if starting in light mode
+    if (theme === 'light') {
+        monacoInstance.editor.setTheme('custom-light-grey');
+    }
 
     editor.updateOptions({
       minimap: { enabled: false },
@@ -153,7 +187,8 @@ export default function CodeEditor({
     }
   }, [scrollToLine]);
 
-  const editorTheme = theme === "dark" ? "vs-dark" : "vs";
+  // Use the custom theme for light mode
+  const editorTheme = theme === "dark" ? "vs-dark" : "custom-light-grey";
 
   return (
     <div className={`relative ${className || ""}`} style={{ height }}>
@@ -173,14 +208,14 @@ export default function CodeEditor({
           background-color: #dc2626;
         }
         .monaco-editor .margin {
-          background-color: ${theme === "dark" ? "#1e1e1e" : "#f3f4f6"};
+          background-color: ${theme === "dark" ? "#1e1e1e" : "#f0f0f2"}; /* Match custom theme background */
         }
         .monaco-editor .glyph-margin {
-          background-color: ${theme === "dark" ? "#1e1e1e" : "#f3f4f6"};
+          background-color: ${theme === "dark" ? "#1e1e1e" : "#f0f0f2"}; /* Match custom theme background */
         }
         /* Ensure hover messages are styled appropriately */
         .monaco-hover-content {
-          background-color: ${theme === "dark" ? "#252526" : "#ffffff"};
+          background-color: ${theme === "dark" ? "#252526" : "#ffffff"}; /* Keep hover white for now */
           border: 1px solid ${theme === "dark" ? "#454545" : "#c8c8c8"};
           color: ${theme === "dark" ? "#cccccc" : "#333333"};
           padding: 4px 8px;

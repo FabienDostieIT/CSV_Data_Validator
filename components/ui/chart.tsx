@@ -117,13 +117,17 @@ interface ChartTooltipProps {
   label?: string | React.ReactElement;
   hideLabel?: boolean;
   hideIndicator?: boolean;
-  indicator?: 'dot' | 'line' | 'dashed';
+  indicator?: "dot" | "line" | "dashed";
   labelKey?: string;
   labelFormatter?: (label: string, payload: Array<unknown>) => React.ReactNode;
-  formatter?: (value: number | string | Array<number | string>, name: string, item: unknown, index: number, payload: Array<unknown>) => React.ReactNode;
+  formatter?: (
+    value: number | string | Array<number | string>,
+    name: string,
+    item: unknown,
+    index: number,
+    payload: Array<unknown>,
+  ) => React.ReactNode;
   color?: string;
-  showValue?: boolean;
-  valueFormatter?: (value: unknown) => unknown;
 }
 
 // Define a more specific type for our safe payload item that uses optional properties
@@ -144,9 +148,10 @@ const getPayloadConfigFromPayload = (
     return undefined;
   }
 
-  const key = typeof item.dataKey === 'string' ? item.dataKey : String(item.dataKey);
+  const key =
+    typeof item.dataKey === "string" ? item.dataKey : String(item.dataKey);
   return config[key];
-}
+};
 
 export function ChartTooltip({
   className,
@@ -155,15 +160,11 @@ export function ChartTooltip({
   config = {},
   label,
   hideLabel = false,
-  showValue: _showValue = false,
-  valueFormatter: _valueFormatter = (value: unknown) => value,
   indicator = "dot",
   hideIndicator = false,
   formatter,
   color,
 }: ChartTooltipProps) {
-  const { config: _ } = useChart();
-
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !payload || payload.length === 0) {
       return null;
@@ -172,18 +173,22 @@ export function ChartTooltip({
     if (!firstItem) {
       return null;
     }
-    
+
     // No need to convert since we properly typed the Payload
     const itemConfig = getPayloadConfigFromPayload(config, firstItem);
-    
+
     // Fix the TypeScript error by properly typing the values
     let displayValue: React.ReactNode;
-    
-    if (typeof label === 'string' || React.isValidElement(label)) {
+
+    if (typeof label === "string" || React.isValidElement(label)) {
       displayValue = label;
-    } else if (itemConfig?.label && (typeof itemConfig.label === 'string' || React.isValidElement(itemConfig.label))) {
+    } else if (
+      itemConfig?.label &&
+      (typeof itemConfig.label === "string" ||
+        React.isValidElement(itemConfig.label))
+    ) {
       displayValue = itemConfig.label;
-    } else if (firstItem.name && typeof firstItem.name === 'string') {
+    } else if (firstItem.name && typeof firstItem.name === "string") {
       displayValue = firstItem.name;
     } else {
       return null; // No valid label found
@@ -202,28 +207,36 @@ export function ChartTooltip({
     <div
       className={cn(
         "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
-        className
+        className,
       )}
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
         {payload.map((item, index) => {
-          // Rename to _itemPayload to indicate it's used but not directly referenced
-          const _itemPayload = item.payload;
-          const fill = _itemPayload?.fill as string | undefined;
-          const itemColor = color || fill || (item.color) || "hsl(var(--foreground))";
+          const itemPayload = item.payload || {};
+          const fill = itemPayload?.fill as string | undefined;
+          const itemColor =
+            color || fill || item.color || "hsl(var(--foreground))";
           const itemConfig = getPayloadConfigFromPayload(config, item);
 
           return (
             <div
-              key={typeof item.dataKey === 'string' ? item.dataKey : index}
+              key={typeof item.dataKey === "string" ? item.dataKey : index}
               className={cn(
                 "flex w-full items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
-                indicator === "dot" && "items-center"
+                indicator === "dot" && "items-center",
               )}
             >
-              {formatter && item.value !== undefined && item.name !== undefined ? (
-                formatter(item.value as number | string | Array<number | string>, item.name, item, index, payload)
+              {formatter &&
+              item.value !== undefined &&
+              item.name !== undefined ? (
+                formatter(
+                  item.value as number | string | Array<number | string>,
+                  item.name,
+                  item,
+                  index,
+                  payload,
+                )
               ) : (
                 <>
                   {itemConfig?.icon ? (
@@ -236,34 +249,39 @@ export function ChartTooltip({
                           {
                             "h-2.5 w-2.5": indicator === "dot",
                             "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent": indicator === "dashed",
+                            "w-0 border-[1.5px] border-dashed bg-transparent":
+                              indicator === "dashed",
                             "my-0.5": nestLabel && indicator === "dashed",
-                          }
+                          },
                         )}
-                        style={{
-                          "--color-bg": itemColor,
-                          "--color-border": itemColor,
-                        } as React.CSSProperties}
+                        style={
+                          {
+                            "--color-bg": itemColor,
+                            "--color-border": itemColor,
+                          } as React.CSSProperties
+                        }
                       />
                     )
                   )}
                   <div
                     className={cn(
                       "flex flex-1 justify-between leading-none",
-                      nestLabel ? "items-end" : "items-center"
+                      nestLabel ? "items-end" : "items-center",
                     )}
                   >
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
                       <span className="text-muted-foreground">
-                        {itemConfig?.label || item.name || (item.dataKey ? String(item.dataKey) : "Unknown")}
+                        {itemConfig?.label ||
+                          item.name ||
+                          (item.dataKey ? String(item.dataKey) : "Unknown")}
                       </span>
                     </div>
                     {item.value !== undefined && (
                       <span className="font-mono font-medium tabular-nums text-foreground">
-                        {typeof item.value === 'number' 
-                          ? (item.value).toLocaleString()
-                          : typeof item.value === 'string'
+                        {typeof item.value === "number"
+                          ? item.value.toLocaleString()
+                          : typeof item.value === "string"
                             ? item.value
                             : JSON.stringify(item.value)}
                       </span>
@@ -284,10 +302,14 @@ ChartTooltip.displayName = "ChartTooltip";
 interface ChartLegendProps extends RechartsPrimitive.LegendProps {
   hideIcon?: boolean;
   className?: string;
-  verticalAlign?: 'top' | 'middle' | 'bottom';
+  verticalAlign?: "top" | "middle" | "bottom";
 }
 
-const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLegendProps) => {
+const ChartLegend = ({
+  className,
+  hideIcon,
+  verticalAlign = "bottom",
+}: ChartLegendProps) => {
   const { config } = useChart();
 
   const renderLegendItem = (props: DefaultLegendContentProps) => {
@@ -299,13 +321,13 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
         className={cn(
           "flex items-center justify-center gap-4",
           verticalAlign === "top" ? "pb-3" : "pt-3",
-          className
+          className,
         )}
       >
         {payload.map((item, index) => {
-          const _itemPayload = item.payload || {};
           const itemConfig = config[item.dataKey as string] || {};
-          const color = itemConfig?.color || item.color || "hsl(var(--foreground))";
+          const color =
+            itemConfig?.color || item.color || "hsl(var(--foreground))";
 
           if (itemConfig?.hide) {
             return null;
@@ -313,9 +335,9 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
 
           return (
             <div
-              key={index} 
+              key={index}
               className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
+                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
               )}
             >
               {itemConfig?.icon && !hideIcon ? (
@@ -328,7 +350,8 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
                   />
                 )
               )}
-              {itemConfig?.label || (item.value !== undefined ? String(item.value) : "")}
+              {itemConfig?.label ||
+                (item.value !== undefined ? String(item.value) : "")}
             </div>
           );
         })}
@@ -341,9 +364,4 @@ const ChartLegend = ({ className, hideIcon, verticalAlign = "bottom" }: ChartLeg
 ChartLegend.displayName = "ChartLegend";
 
 // Export all components
-export {
-  ChartContainer,
-  ChartLegend,
-  useChart,
-};
-
+export { ChartContainer, ChartLegend, useChart };

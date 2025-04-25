@@ -45,9 +45,10 @@ import {
   Info,
   Key,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Papa from "papaparse";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -56,7 +57,12 @@ import ValidationResults from "@/components/validation-results";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { getSchemasList, getSchemaByName, generateSchemaDocumentation, type SchemaObject } from '@/lib/api-client';
+import {
+  getSchemasList,
+  getSchemaByName,
+  generateSchemaDocumentation,
+  type SchemaObject,
+} from "@/lib/api-client";
 
 // --- Web Worker Setup ---
 const getWorker = (() => {
@@ -255,7 +261,7 @@ export default function CsvValidator() {
   >([]); // Updated state type
   const [totalErrorCount, setTotalErrorCount] = useState<number>(0);
   const [totalWarningCount, setTotalWarningCount] = useState<number>(0);
-  const [visibleResultCount, setVisibleResultCount] = useState<number>(20); // State for visible results
+  const [currentPage, setCurrentPage] = useState<number>(0); // State for pagination
   const [isLoadingSchemaList, setIsLoadingSchemaList] = useState<boolean>(true);
   const [isLoadingSchemaContent, setIsLoadingSchemaContent] =
     useState<boolean>(false);
@@ -300,8 +306,11 @@ export default function CsvValidator() {
   // --- Toast Notifications ---
   const { toast } = useToast();
 
-  // Derived state for displayed results
+  // Derived state for displayed results (using pagination)
   const displayedResults = useMemo(() => {
+    const itemsPerPage = 20;
+    const startIndex = currentPage * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
     // Sort: errors first, then warnings, then none (if any)
     return [...validationResults]
       .sort((a, b) => {
@@ -311,26 +320,8 @@ export default function CsvValidator() {
         // If both have errors or both have none, preserve order
         return a.row - b.row;
       })
-      .slice(0, visibleResultCount);
-  }, [validationResults, visibleResultCount]);
-
-  // Update Virtualizer configuration - Uncomment
-  const rowVirtualizer = useVirtualizer({
-    count: displayedResults.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 50,
-    overscan: 5,
-    // measureElement: (element) => {
-    //      const trigger = element.querySelector('[data-state="closed"], [data-state="open"]');
-    //      return trigger?.getBoundingClientRect().height || element.getBoundingClientRect().height;
-    // }
-  });
-
-  useEffect(() => {
-    if (validationResults.length > 0 && visibleResultCount < 20) {
-      setVisibleResultCount(Math.min(20, validationResults.length));
-    }
-  }, [validationResults, visibleResultCount]);
+      .slice(startIndex, endIndex); // Use pagination slice
+  }, [validationResults, currentPage]);
 
   // --- Effect to Load from Local Storage on Mount ---
   useEffect(() => {
@@ -531,6 +522,7 @@ export default function CsvValidator() {
       // Adjusted condition
       setSelectedSchemaContent("");
       setSchemaMarkdown(""); // Clear markdown when schema is unselected/cleared
+      setIsLoadingSchemaContent(false); // Ensure loading is off when no schema is active
       return;
     }
 
@@ -551,17 +543,19 @@ export default function CsvValidator() {
         }
         if (!useUploadedSchema && selectedSchemaName) {
           // Ensure we're passing a string, not an object
-          const schemaNameToFetch = typeof selectedSchemaName === 'string' 
-            ? selectedSchemaName.replace(/\.json$/, "") // Remove .json extension if present
-            : String(selectedSchemaName).replace(/\.json$/, "");
-          
+          const schemaNameToFetch =
+            typeof selectedSchemaName === "string"
+              ? selectedSchemaName.replace(/\.json$/, "") // Remove .json extension if present
+              : String(selectedSchemaName).replace(/\.json$/, "");
+
           console.log(`Fetching schema: ${schemaNameToFetch}`);
           try {
             // Use our new API client instead of direct fetch
             const data = await getSchemaByName(schemaNameToFetch);
-            
+
             // Handle the response data structure
-            const newSchemaContent = typeof data === 'object' ? data : { content: data };
+            const newSchemaContent =
+              typeof data === "object" ? data : { content: data };
             schemaContentCache[selectedSchemaName] = newSchemaContent;
             setSelectedSchemaContent(newSchemaContent);
             setIsLoadingSchemaContent(false);
@@ -852,9 +846,9 @@ export default function CsvValidator() {
     }
   }, [selectedSchemaName, toast]); // Add dependencies
 
-  const handleCopyResults = () => {
+  const handleCopyAllResults = () => {
     // Include warnings in copied results
-    const resultsText = JSON.stringify(validationResults, null, 2);
+    const resultsText = JSON.stringify(validationResults, null, 2); // Copy ALL results, not just displayed
     navigator.clipboard.writeText(resultsText).then(
       () => {
         void toast({
@@ -871,12 +865,6 @@ export default function CsvValidator() {
           variant: "destructive",
         });
       },
-    );
-  };
-
-  const handleShowMoreResults = () => {
-    setVisibleResultCount((prev) =>
-      Math.min(prev + 20, validationResults.length),
     );
   };
 
@@ -901,6 +889,8 @@ export default function CsvValidator() {
     setHighlightedCsvLine(undefined);
     localStorage.removeItem(LOCAL_STORAGE_KEY); // <-- CLEAR LOCAL STORAGE
     setIsEditorDirty(false); // Mark as clean
+    // Reset pagination on clear
+    setCurrentPage(0);
     toast({
       title: "CSV Cleared",
       description: "Input data has been removed.",
@@ -927,15 +917,20 @@ export default function CsvValidator() {
             ...validationBatchRef.current,
             ...payload.results,
           ];
+          // Update full results, pagination will handle display
           memoizedSetValidationResults([...validationBatchRef.current]);
         } else if (type === "complete") {
           setWorkerBusy(false);
           setTotalErrorCount(payload.totalErrors || 0);
           setTotalWarningCount(payload.totalWarnings || 0);
           setOverallCsvStatus(payload.totalErrors === 0 ? "valid" : "invalid");
+          // Reset to first page when validation completes
+          setCurrentPage(0);
         } else if (type === "error") {
           setWorkerBusy(false);
           setOverallCsvStatus("error");
+          // Reset to first page on error
+          setCurrentPage(0);
         }
       };
       // Parse CSV and schema before sending to worker
@@ -1071,6 +1066,18 @@ export default function CsvValidator() {
     handleSaveCsv(csvRawText, filenameToUse);
   }, [csvRawText, handleSaveCsv, csvFileName]);
 
+  // --- Pagination Handlers ---
+  const handleNextPage = () => {
+    const itemsPerPage = 20;
+    setCurrentPage((prev) =>
+      (prev + 1) * itemsPerPage < validationResults.length ? prev + 1 : prev,
+    );
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => (prev > 0 ? prev - 1 : 0));
+  };
+
   return (
     <div className="flex flex-col h-screen w-full">
       <header className="flex items-center justify-between px-6 py-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
@@ -1121,13 +1128,12 @@ export default function CsvValidator() {
               ) : null}
               {availableSchemaNames.map((schema) => {
                 // Ensure we have a string for value and display
-                const schemaValue = typeof schema === "string" 
-                  ? schema 
-                  : String(schema);
-                
+                const schemaValue =
+                  typeof schema === "string" ? schema : String(schema);
+
                 // Remove .json extension for display
                 const schemaLabel = schemaValue.replace(/\.json$/, "");
-                
+
                 return (
                   <SelectItem
                     key={schemaValue}
@@ -1230,9 +1236,9 @@ export default function CsvValidator() {
           onClick={handleManualValidateClick}
           disabled={
             workerBusy ||
+            isLoadingSchemaContent ||
             !csvRawText.trim() ||
-            (!selectedSchemaName && !useUploadedSchema) ||
-            !(useUploadedSchema ? uploadedSchemaContent : selectedSchemaContent)
+            (!selectedSchemaName && !useUploadedSchema)
           }
           size="sm"
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
@@ -1658,7 +1664,7 @@ export default function CsvValidator() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleCopyResults}
+                        onClick={handleCopyAllResults}
                         disabled={validationResults.length === 0}
                         className="hover:bg-white/10 dark:hover:bg-zinc-700 text-[#1e007d] dark:text-zinc-300 h-8 w-8"
                       >
@@ -1666,56 +1672,67 @@ export default function CsvValidator() {
                       </Button>
                     </TooltipTrigger>{" "}
                     <TooltipContent side="bottom">
-                      <p>Copy Results</p>
+                      <p>Copy All Results</p>
                     </TooltipContent>{" "}
                   </Tooltip>{" "}
                 </TooltipProvider>
               </div>
             </CardHeader>
-            <ScrollArea type="auto">
-              <CardContent className="p-0 overflow-auto">
-                <div
-                  style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                    width: "100%",
-                    position: "relative",
-                  }}
-                >
-                  {displayedResults.length === 0 && !workerBusy && (
-                    <div className="flex items-center justify-center p-10 text-muted-foreground">
-                      {overallCsvStatus === "pending"
-                        ? "Upload CSV and click Validate."
-                        : "No issues found."}
-                    </div>
-                  )}
-                  {workerBusy && (
-                    <div className="flex items-center justify-center p-10 text-muted-foreground">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                      Validating...
-                    </div>
-                  )}
-                  <ValidationResults
-                    results={displayedResults}
-                    openAccordionValue={openAccordionValue}
-                    setOpenAccordionValue={setOpenAccordionValue}
-                    setHighlightedCsvLine={setHighlightedCsvLine}
-                    setScrollToLine={setScrollToLine}
-                  />
-                </div>
+            <ScrollArea type="auto" className="flex-grow">
+              <CardContent className="p-0 overflow-auto flex-grow">
+                {displayedResults.length === 0 && !workerBusy && (
+                  <div className="flex items-center justify-center p-10 text-muted-foreground">
+                    {overallCsvStatus === "pending"
+                      ? "Upload CSV and click Validate."
+                      : "No issues found."}
+                  </div>
+                )}
+                {workerBusy && (
+                  <div className="flex items-center justify-center p-10 text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                    Validating...
+                  </div>
+                )}
+                <ValidationResults
+                  results={displayedResults}
+                  openAccordionValue={openAccordionValue}
+                  setOpenAccordionValue={setOpenAccordionValue}
+                  setHighlightedCsvLine={setHighlightedCsvLine}
+                  setScrollToLine={setScrollToLine}
+                />
               </CardContent>
-              {validationResults.length > visibleResultCount && (
-                <CardFooter className="p-3 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 justify-center">
-                  <Button
-                    variant="secondary"
-                    onClick={handleShowMoreResults}
-                    disabled={workerBusy}
-                  >
-                    Show More Results ({displayedResults.length} /{" "}
-                    {validationResults.length})
-                  </Button>
-                </CardFooter>
-              )}
             </ScrollArea>
+            {/* --- Pagination Footer --- */}
+            {validationResults.length > 20 && ( // Only show footer if more than one page possible
+              <CardFooter className="p-2 border-t border-[#1e007d]/10 dark:border-zinc-600 flex-shrink-0 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 0 || workerBusy}
+                  className="px-2"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage + 1} of{" "}
+                  {Math.ceil(validationResults.length / 20)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={
+                    (currentPage + 1) * 20 >= validationResults.length || workerBusy
+                  }
+                  className="px-2"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
       </div>

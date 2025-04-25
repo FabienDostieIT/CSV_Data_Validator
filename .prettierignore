@@ -1,1 +1,50 @@
+# Node / Package Manager
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build Artifacts
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+logs
+*.log.*
+
+# Test Artifacts
+coverage/
+test-results/
+junit.xml
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# Environment Variables
+.env*
+!.env.example
+
+# IDE / Editor Directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary / Cache Files
+.tmp/
+.cache/
+
+# Specific Project Files (Adjust as needed)
+act.md
+format.md
+prettier.md
+lint-errors.json
 public/__schema_templates/schema.hbs

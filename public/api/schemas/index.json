@@ -1,0 +1,10 @@
+[
+  {
+    "name": "event",
+    "filename": "event.json"
+  },
+  {
+    "name": "place",
+    "filename": "place.json"
+  }
+]

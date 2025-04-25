@@ -27,11 +27,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: 'npm'
+          cache: "npm"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
+
       - name: Install dependencies
         run: npm install
 
@@ -55,4 +55,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 
+        uses: actions/deploy-pages@v4
