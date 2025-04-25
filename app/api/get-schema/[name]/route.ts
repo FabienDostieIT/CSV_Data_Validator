@@ -13,6 +13,11 @@ function safeJoin(base: string, target: string): string | null {
   return null; // Path traversal detected or invalid path
 }
 
+// Type guard function to validate JSON schema objects
+function isValidSchemaObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 // The standard Next.js App Router route handler type signature
 export async function GET(
   request: Request,
@@ -46,13 +51,27 @@ export async function GET(
     console.log(`Attempting to read schema file: ${filePath}`);
 
     const fileContent: string = await fs.readFile(filePath, "utf-8");
-    // Parse JSON with proper type assertion that satisfies ESLint
-    const parsedContent = JSON.parse(fileContent);
-    // Use type assertion after validation to satisfy ESLint
-    const schemaJson: Record<string, unknown> = 
-      typeof parsedContent === 'object' && parsedContent !== null 
-        ? parsedContent as Record<string, unknown>
-        : {};
+    
+    // Safely parse and validate the JSON schema
+    let schemaJson: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(fileContent);
+      
+      if (!isValidSchemaObject(parsed)) {
+        return NextResponse.json(
+          { error: "Invalid schema format" },
+          { status: 400 }
+        );
+      }
+      
+      schemaJson = parsed;
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      return NextResponse.json(
+        { error: "Invalid JSON format" },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json(schemaJson);
   } catch (error: unknown) {
