@@ -8,12 +8,12 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined, // Limit workers in CI
   reporter: "html", // Reporter to use
   use: {
-    baseURL: "http://localhost:3000", // Base URL for actions like page.goto()
+    baseURL: "http://127.0.0.1:3000", // Use explicit IP for baseURL
     trace: "retain-on-failure", // Record trace if test fails
   },
   webServer: {
     command: "DEBUG=next:start pnpm start",
-    url: "http://localhost:3000", // URL to wait for
+    url: "http://127.0.0.1:3000", // Use explicit IP for webServer check
     reuseExistingServer: !process.env.CI, // Reuse server locally, start fresh in CI
     timeout: 240 * 1000, // Increase timeout for server start (4 minutes)
     stderr: 'pipe', // Pipe server errors to Playwright process
