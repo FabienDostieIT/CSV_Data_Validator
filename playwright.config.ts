@@ -9,10 +9,10 @@ export default defineConfig({
   reporter: "html", // Reporter to use
   use: {
     baseURL: "http://localhost:3000", // Base URL for actions like page.goto()
-    trace: "on-first-retry", // Record trace only when retrying a failed test
+    trace: "retain-on-failure", // Record trace if test fails
   },
   webServer: {
-    command: "pnpm start", // Command to start the dev server
+    command: "DEBUG=next:start pnpm start",
     url: "http://localhost:3000", // URL to wait for
     reuseExistingServer: !process.env.CI, // Reuse server locally, start fresh in CI
     timeout: 240 * 1000, // Increase timeout for server start (4 minutes)
