@@ -24,8 +24,13 @@ function isValidSchemaObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Force dynamic rendering to avoid prerender errors
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 // Use the simplest form for Next.js 15 compatibility
-export async function GET(request, context) {
+// Type the parameters with any to satisfy TypeScript without conflicting with Next.js
+export async function GET(request: any, context: any) {
   // Extract schema name from URL params
   const schemaName = context.params.name;
 
@@ -97,7 +102,4 @@ export async function GET(request, context) {
       { status: 500 }
     );
   }
-}
-
-// Ensure this route is always dynamic and not cached
-export const dynamic = "force-dynamic"; 
+} 
