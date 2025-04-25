@@ -11,16 +11,18 @@ interface SchemaObject {
 }
 
 export async function GET() {
-  // This route should only be used in development
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Endpoint not available in production. Use static index.json." },
-      { status: 404 },
-    );
-  }
+  // Remove the production check - allow the route to run in all environments
+  // if (process.env.NODE_ENV === "production") {
+  //   return NextResponse.json(
+  //     { error: "Endpoint not available in production. Use static index.json." },
+  //     { status: 404 },
+  //   );
+  // }
 
   try {
-    const files = await fs.readdir(SCHEMAS_DIR);
+    // Adjust path for potentially different cwd() in Vercel - read directly from ./public relative to project root
+    const schemasDirRelative = path.join("public", "api", "schemas"); // Path relative to project root
+    const files = await fs.readdir(schemasDirRelative);
 
     // Filter to only include JSON files and exclude Zone.Identifier files
     const schemaFiles = files.filter(
