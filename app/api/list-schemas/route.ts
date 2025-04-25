@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
-const SCHEMAS_DIR = path.join(process.cwd(), "public", "schemas", "v1");
+// Remove unused constant
+// const SCHEMAS_DIR = path.join(process.cwd(), "public", "schemas", "v1");
 
 // Interface for the response items
 interface SchemaObject {

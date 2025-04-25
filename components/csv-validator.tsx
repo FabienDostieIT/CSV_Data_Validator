@@ -300,7 +300,6 @@ export default function CsvValidator() {
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const schemaFileInputRef = useRef<HTMLInputElement>(null);
-  const parentRef = useRef<HTMLDivElement>(null); // Ref for virtualizer
   const validationBatchRef = useRef<RowValidationResults[]>([]); // KEEPING THIS
 
   // --- Toast Notifications ---

@@ -45,7 +45,8 @@ export async function GET(
     console.log(`Attempting to read schema file: ${filePath}`); // Add logging
 
     const fileContent = await fs.readFile(filePath, "utf-8");
-    const schemaJson = JSON.parse(fileContent);
+    // Assert the type after parsing JSON to satisfy eslint
+    const schemaJson = JSON.parse(fileContent) as Record<string, unknown>;
 
     return NextResponse.json(schemaJson);
   } catch (error) {
