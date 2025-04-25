@@ -29,8 +29,8 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 // Use the simplest form for Next.js 15 compatibility
-// Type the parameters with any to satisfy TypeScript without conflicting with Next.js
-export async function GET(request: any, context: any) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, context: any) {
   // Extract schema name from URL params
   const schemaName = context.params.name;
 
