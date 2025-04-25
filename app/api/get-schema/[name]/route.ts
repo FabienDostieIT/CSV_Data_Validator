@@ -2,6 +2,13 @@ import { NextResponse, NextRequest } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+// Explicitly define the type for the context parameter
+interface RouteContext {
+  params: {
+    name: string;
+  };
+}
+
 // Helper function to safely join paths and prevent traversal
 function safeJoin(base: string, target: string): string | null {
   const targetPath = "." + path.normalize("/" + target);
@@ -16,9 +23,9 @@ function safeJoin(base: string, target: string): string | null {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  context: RouteContext // Use the explicitly defined type
 ) {
-  const schemaName = params.name;
+  const schemaName = context.params.name;
 
   if (!schemaName) {
     return NextResponse.json({ error: "Schema name required" }, { status: 400 });
