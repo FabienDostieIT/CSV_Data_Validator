@@ -13,9 +13,9 @@ export default defineConfig({
   },
   webServer: {
     command: "DEBUG=next:start pnpm start",
-    url: "http://127.0.0.1:3000", // Use explicit IP for webServer check
     reuseExistingServer: !process.env.CI, // Reuse server locally, start fresh in CI
     timeout: 240 * 1000, // Increase timeout for server start (4 minutes)
+    port: 3000, // Check if port is open instead of polling URL
     stderr: 'pipe', // Pipe server errors to Playwright process
     stdout: 'pipe', // Pipe server output to Playwright process
   },
