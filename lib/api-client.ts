@@ -144,7 +144,10 @@ export async function generateSchemaDocumentation(
 
   // In development, use the API endpoint
   try {
-    const response = await fetch(`${getApiBase()}/generate-schema-doc`, {
+    // Use the absolute path to ensure the request works correctly
+    const url = "/api/generate-schema-doc";
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schema }),
