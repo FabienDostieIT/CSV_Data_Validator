@@ -97,9 +97,9 @@ test.describe('CSV Data Validator Application', () => {
     await page.route('**/api/generate-schema-doc', async (route: Route) => {
       console.log('Mocking /api/generate-schema-doc');
       
-      // Extract the schema from the request body
-      const requestData = route.request().postDataJSON();
-      const schemaTitle = requestData?.title || 'Schema';
+      // Extract the schema from the request body with proper typing
+      const requestData = route.request().postDataJSON() as { title?: string };
+      const schemaTitle = (requestData?.title as string) || 'Schema';
       
       const mockMarkdown = `
 # ${schemaTitle}
