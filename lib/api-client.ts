@@ -84,53 +84,63 @@ export async function getSchemaByName(
 }
 
 /**
+ * Generate a basic markdown representation of a schema object on the client side
+ * This is used as a fallback when the API endpoint is not available
+ * 
+ * @param {Record<string, unknown>} schema - The schema object
+ * @returns {string} - The generated markdown
+ */
+function generateClientSideMarkdown(schema: Record<string, unknown>): string {
+  const title = (schema.title as string) || "JSON Schema";
+  const description =
+    (schema.description as string) || "No description available";
+
+  let markdown = `# ${title}\n\n${description}\n\n`;
+
+  if (schema.properties && typeof schema.properties === "object") {
+    markdown += "## Properties\n\n";
+
+    for (const [propName, propDetails] of Object.entries(
+      schema.properties as Record<string, SchemaPropertyDetails>,
+    )) {
+      markdown += `### ${propName}\n\n`;
+
+      if (propDetails.description) {
+        markdown += `${propDetails.description}\n\n`;
+      }
+
+      if (propDetails.type) {
+        markdown += `**Type**: ${propDetails.type}\n\n`;
+      }
+
+      if (
+        propDetails.examples &&
+        Array.isArray(propDetails.examples) &&
+        propDetails.examples.length > 0
+      ) {
+        markdown += `**Example**: \`${JSON.stringify(propDetails.examples[0])}\`\n\n`;
+      }
+    }
+  }
+
+  return markdown;
+}
+
+/**
  * Generate documentation for a schema
- * Note: In production, this will attempt to use a static generator on the client side
- * since the API endpoint won't be available
+ * Uses API endpoint in development mode with a fallback to client-side generation
+ * Uses client-side generation in production mode
+ * 
  * @param {Record<string, unknown>} schema - The schema object
  * @returns {Promise<{markdown: string}>}
  */
 export async function generateSchemaDocumentation(
   schema: Record<string, unknown>,
 ): Promise<{ markdown: string }> {
+  // In production, generate markdown on the client side
   if (process.env.NODE_ENV === "production") {
     try {
-      // In production we'll need to use a client-side fallback
-      // This is a placeholder for potential client-side doc generation
-      // For now, return a basic markdown representation of the schema
-      const title = (schema.title as string) || "JSON Schema";
-      const description =
-        (schema.description as string) || "No description available";
-
-      let markdown = `# ${title}\n\n${description}\n\n`;
-
-      if (schema.properties && typeof schema.properties === "object") {
-        markdown += "## Properties\n\n";
-
-        for (const [propName, propDetails] of Object.entries(
-          schema.properties as Record<string, SchemaPropertyDetails>,
-        )) {
-          markdown += `### ${propName}\n\n`;
-
-          if (propDetails.description) {
-            markdown += `${propDetails.description}\n\n`;
-          }
-
-          if (propDetails.type) {
-            markdown += `**Type**: ${propDetails.type}\n\n`;
-          }
-
-          if (
-            propDetails.examples &&
-            Array.isArray(propDetails.examples) &&
-            propDetails.examples.length > 0
-          ) {
-            markdown += `**Example**: \`${JSON.stringify(propDetails.examples[0])}\`\n\n`;
-          }
-        }
-      }
-
-      return { markdown };
+      return { markdown: generateClientSideMarkdown(schema) };
     } catch (error) {
       console.error(
         "Error generating client-side schema documentation:",
@@ -142,7 +152,7 @@ export async function generateSchemaDocumentation(
     }
   }
 
-  // In development, use the API endpoint
+  // In development, try the API endpoint first, fallback to client-side if unavailable
   try {
     // Use the absolute path to ensure the request works correctly
     const url = "/api/generate-schema-doc";
@@ -160,6 +170,25 @@ export async function generateSchemaDocumentation(
     return (await response.json()) as { markdown: string };
   } catch (error) {
     console.error("Error fetching schema documentation:", error);
-    throw error;
+    
+    // Check if it's a network error (connection refused)
+    if (error instanceof Error && 
+        (error.message.includes('Failed to fetch') || 
+         error.message.includes('Network Error') ||
+         error.message.includes('Connection refused'))) {
+      console.log("API endpoint unavailable, falling back to client-side generation");
+      
+      // Fall back to client-side generation
+      try {
+        return { markdown: generateClientSideMarkdown(schema) };
+      } catch (fallbackError) {
+        console.error("Error in client-side fallback:", fallbackError);
+      }
+    }
+    
+    // If not a network error or client-side fallback failed, return error message
+    return {
+      markdown: `# Error Loading Documentation\n\n${error instanceof Error ? error.message : 'Unknown error'}`
+    };
   }
 }

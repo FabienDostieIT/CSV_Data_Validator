@@ -1082,11 +1082,11 @@ export default function CsvValidator() {
       <header className="flex items-center justify-between px-6 py-4 border-b border-[#1e007d]/10 dark:border-zinc-700 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Image
-            src="/lavitrine_logo.svg"
-            alt="Company Logo"
+            src="/lefab_logo.svg"
+            alt="LeFab Logo"
             width={64}
             height={64}
-            className="h-16 w-auto transition-all duration-300 dark:filter dark:invert dark:brightness-0 dark:contrast-100"
+            className="h-16 w-auto transition-all duration-300"
           />
           <span className="text-sm font-medium text-muted-foreground">|</span>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">

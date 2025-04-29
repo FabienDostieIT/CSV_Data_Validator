@@ -59,7 +59,7 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
     await expect(page.locator("h1")).toContainText("CSV Data Validator");
   });
 
@@ -68,7 +68,7 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
     await expect(
       page.getByRole("button").filter({ hasText: "Upload CSV" }),
     ).toBeVisible();
@@ -79,7 +79,7 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
     await expect(page.getByText(/schema:/i)).toBeVisible();
     // Check initial state of validate button
     const validateButton: Locator = page.getByRole("button", {
@@ -92,7 +92,7 @@ test.describe("CSV Data Validator E2E", () => {
   test("should be able to select a schema from the dropdown", async ({ page }) => {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     await setupApiMocks(page);
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
 
     // Wait for API and dropdown
     await page.waitForResponse("**/api/schemas");
@@ -113,7 +113,7 @@ test.describe("CSV Data Validator E2E", () => {
   test("should enable validate button after schema selection and CSV upload", async ({ page }) => {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     await setupApiMocks(page);
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
 
     // --- Select Schema ---
     await page.waitForResponse("**/api/schemas");
@@ -141,7 +141,7 @@ test.describe("CSV Data Validator E2E", () => {
   test("should validate CSV and display results", async ({ page }) => {
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     await setupApiMocks(page);
-    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
+    await page.goto("http://localhost:3000/");
 
     // --- Select Schema ---
     await page.waitForResponse("**/api/schemas");
