@@ -1723,7 +1723,8 @@ export default function CsvValidator() {
                   size="sm"
                   onClick={handleNextPage}
                   disabled={
-                    (currentPage + 1) * 20 >= validationResults.length || workerBusy
+                    (currentPage + 1) * 20 >= validationResults.length ||
+                    workerBusy
                   }
                   className="px-2"
                 >

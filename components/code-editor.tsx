@@ -76,8 +76,8 @@ export default function CodeEditor({
     });
 
     // Explicitly set the theme if starting in light mode
-    if (theme === 'light') {
-        monacoInstance.editor.setTheme('custom-light-grey');
+    if (theme === "light") {
+      monacoInstance.editor.setTheme("custom-light-grey");
     }
 
     editor.updateOptions({
@@ -208,14 +208,20 @@ export default function CodeEditor({
           background-color: #dc2626;
         }
         .monaco-editor .margin {
-          background-color: ${theme === "dark" ? "#1e1e1e" : "#f0f0f2"}; /* Match custom theme background */
+          background-color: ${theme === "dark"
+            ? "#1e1e1e"
+            : "#f0f0f2"}; /* Match custom theme background */
         }
         .monaco-editor .glyph-margin {
-          background-color: ${theme === "dark" ? "#1e1e1e" : "#f0f0f2"}; /* Match custom theme background */
+          background-color: ${theme === "dark"
+            ? "#1e1e1e"
+            : "#f0f0f2"}; /* Match custom theme background */
         }
         /* Ensure hover messages are styled appropriately */
         .monaco-hover-content {
-          background-color: ${theme === "dark" ? "#252526" : "#ffffff"}; /* Keep hover white for now */
+          background-color: ${theme === "dark"
+            ? "#252526"
+            : "#ffffff"}; /* Keep hover white for now */
           border: 1px solid ${theme === "dark" ? "#454545" : "#c8c8c8"};
           color: ${theme === "dark" ? "#cccccc" : "#333333"};
           padding: 4px 8px;

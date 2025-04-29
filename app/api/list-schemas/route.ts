@@ -22,8 +22,7 @@ export async function GET() {
 
   try {
     // Adjust path for potentially different cwd() in Vercel - try path.resolve
-    // const schemasDirRelative = path.join("public", "api", "schemas"); // Path relative to project root
-    const schemasDir = path.resolve("./public/api/schemas");
+    const schemasDir = path.resolve("./schemas/v1");
     console.log(`Attempting to read schema directory: ${schemasDir}`); // Add logging
     const files = await fs.readdir(schemasDir);
 

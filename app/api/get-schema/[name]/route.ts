@@ -21,7 +21,7 @@ function safeJoin(base: string, target: string): string | null {
 
 // Type guard function to validate JSON schema objects
 function isValidSchemaObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // Force dynamic rendering to avoid prerender errors
@@ -35,7 +35,10 @@ export async function GET(request: Request, context: any) {
   const schemaName = context.params.name;
 
   if (!schemaName) {
-    return NextResponse.json({ error: "Schema name required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Schema name required" },
+      { status: 400 },
+    );
   }
 
   // Sanitize the name: remove .json extension and potentially harmful characters
@@ -52,54 +55,55 @@ export async function GET(request: Request, context: any) {
     const filePath = safeJoin(schemasDir, `${safeSchemaName}.json`);
 
     if (!filePath) {
-      console.error(`Path traversal attempt or invalid path for schema: ${schemaName}`);
-      return NextResponse.json({ error: "Invalid schema name path" }, { status: 400 });
+      console.error(
+        `Path traversal attempt or invalid path for schema: ${schemaName}`,
+      );
+      return NextResponse.json(
+        { error: "Invalid schema name path" },
+        { status: 400 },
+      );
     }
 
     console.log(`Attempting to read schema file: ${filePath}`);
 
     const fileContent = await fs.readFile(filePath, "utf-8");
-    
+
     // Safely parse and validate the JSON schema
     let schemaJson;
     try {
       const parsed = JSON.parse(fileContent);
-      
+
       if (!isValidSchemaObject(parsed)) {
         return NextResponse.json(
           { error: "Invalid schema format" },
-          { status: 400 }
+          { status: 400 },
         );
       }
-      
+
       schemaJson = parsed;
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
       return NextResponse.json(
         { error: "Invalid JSON format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(schemaJson);
   } catch (error) {
     console.error(`Error fetching schema ${safeSchemaName}:`, error);
-    
+
     // Check for file not found error
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      error.code === "ENOENT"
-    ) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return NextResponse.json(
         { error: `Schema '${safeSchemaName}' not found.` },
-        { status: 404 }
+        { status: 404 },
       );
     }
-    
+
     return NextResponse.json(
       { error: `Failed to fetch schema '${safeSchemaName}'` },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

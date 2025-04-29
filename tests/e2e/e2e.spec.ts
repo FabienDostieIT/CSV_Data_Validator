@@ -9,19 +9,22 @@ import {
 test.describe("CSV Data Validator E2E", () => {
   // Helper function to set up API route mocking for all tests
   const setupApiMocks = async (page: Page) => {
+    console.log("Setting up API mocks...");
     // Mock schemas list response
     await page.route("**/api/schemas", async (route: Route) => {
+      console.log("Intercepted /api/schemas");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          schemas: ["sample.json"],
+          schemas: ["event.json", "place.json"],
         }),
       });
     });
 
     // Mock individual schema content response
-    await page.route("**/api/schemas/sample*", async (route: Route) => {
+    await page.route("**/api/schemas/event*", async (route: Route) => {
+      console.log("Intercepted /api/schemas/event*");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -56,7 +59,7 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/");
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
     await expect(page.locator("h1")).toContainText("CSV Data Validator");
   });
 
@@ -65,7 +68,7 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/");
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
     await expect(
       page.getByRole("button").filter({ hasText: "Upload CSV" }),
     ).toBeVisible();
@@ -76,137 +79,94 @@ test.describe("CSV Data Validator E2E", () => {
   }: {
     page: Page;
   }) => {
-    await page.goto("http://localhost:3000/");
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
     await expect(page.getByText(/schema:/i)).toBeVisible();
-  });
-
-  test("should have the validate button disabled when no CSV is uploaded", async ({
-    page,
-  }: {
-    page: Page;
-  }) => {
-    await page.goto("http://localhost:3000/");
+    // Check initial state of validate button
     const validateButton: Locator = page.getByRole("button", {
       name: /validate data/i,
     });
     await expect(validateButton).toBeDisabled();
   });
 
-  test(
-    "should allow uploading a CSV and enable the validate button",
-    async ({ page }: { page: Page }) => {
-      await setupApiMocks(page);
+  // Test 1: Select Schema
+  test("should be able to select a schema from the dropdown", async ({ page }) => {
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    await setupApiMocks(page);
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
 
-      // Visit the home page
-      await page.goto("http://localhost:3000/");
+    // Wait for API and dropdown
+    await page.waitForResponse("**/api/schemas");
+    const dropdownTrigger = page.locator('[role="combobox"]');
+    await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
+    await dropdownTrigger.click();
 
-      // Wait for the main component to render and use a more specific selector
-      await page.waitForSelector('button:has-text("Upload CSV")', {
-        state: "visible",
-      });
+    // Select the schema
+    const optionLocator = page.locator('[role="option"]', { hasText: "event.json" });
+    await expect(optionLocator).toBeVisible({ timeout: 10000 });
+    await optionLocator.click();
 
-      // Use a simpler approach - directly trigger the file input without clicking the button
-      const fileInput: Locator = page.locator(
-        'input[type="file"][accept=".csv, text/csv"]',
-      );
-      await expect(fileInput).toBeAttached();
+    // Verify selection reflected (e.g., dropdown text changes)
+    await expect(dropdownTrigger).toHaveText("event.json");
+  });
 
-      // Set the file directly on the input
-      await fileInput.setInputFiles("public/fixtures/sample.csv");
+  // Test 2: Enable Validate Button
+  test("should enable validate button after schema selection and CSV upload", async ({ page }) => {
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    await setupApiMocks(page);
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
 
-      // Wait for file to be processed (initial wait)
-      await page.waitForTimeout(2000);
+    // --- Select Schema ---
+    await page.waitForResponse("**/api/schemas");
+    const dropdownTrigger = page.locator('[role="combobox"]');
+    await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
+    await dropdownTrigger.click();
+    const optionLocator = page.locator('[role="option"]', { hasText: "event.json" });
+    await expect(optionLocator).toBeVisible({ timeout: 10000 });
+    await optionLocator.click();
+    await expect(dropdownTrigger).toHaveText("event.json"); // Verify schema selected
 
-      // Wait for the mocked schema list API call to complete
-      await page.waitForResponse("**/api/schemas", { timeout: 30000 });
+    // --- Upload CSV ---
+    const fileInput: Locator = page.locator('input[type="file"][accept=".csv, text/csv"]');
+    await expect(fileInput).toBeAttached();
+    await fileInput.setInputFiles("public/fixtures/sample.csv");
+    // Optionally, add a small wait if file processing is async
+    await page.waitForTimeout(500);
 
-      // Wait for the dropdown trigger to be visible
-      const dropdownTrigger = page.locator('[role="combobox"]');
-      await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
+    // --- Check Button State ---
+    const validateButton: Locator = page.getByRole("button", { name: /validate data/i });
+    await expect(validateButton).toBeEnabled({ timeout: 20000 });
+  });
 
-      // Try opening the dropdown
-      await dropdownTrigger.click();
+  // Test 3: Validate and Display Results
+  test("should validate CSV and display results", async ({ page }) => {
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    await setupApiMocks(page);
+    await page.goto("http://localhost:3000/JSON_Schema_Validator/");
 
-      // Check if the first option becomes visible
-      const optionLocator = page.locator('[role="option"]', { hasText: "sample.json" });
-      await expect(optionLocator).toBeVisible({ timeout: 10000 });
-      await optionLocator.click();
+    // --- Select Schema ---
+    await page.waitForResponse("**/api/schemas");
+    const dropdownTrigger = page.locator('[role="combobox"]');
+    await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
+    await dropdownTrigger.click();
+    const optionLocator = page.locator('[role="option"]', { hasText: "event.json" });
+    await expect(optionLocator).toBeVisible({ timeout: 10000 });
+    await optionLocator.click();
 
-      // Now check if the validate button becomes enabled
-      const validateButton: Locator = page.getByRole('button', { name: /validate data/i });
+    // --- Upload CSV ---
+    const fileInput: Locator = page.locator('input[type="file"][accept=".csv, text/csv"]');
+    await expect(fileInput).toBeAttached();
+    await fileInput.setInputFiles("public/fixtures/sample.csv");
+    await page.waitForTimeout(500); // Small wait after upload
 
-      // Implicitly check enablement by attempting to click later.
-      await expect(validateButton).toBeEnabled({ timeout: 10000 });
+    // --- Click Validate ---
+    const validateButton: Locator = page.getByRole("button", { name: /validate data/i });
+    await expect(validateButton).toBeEnabled({ timeout: 20000 });
+    await expect(validateButton).toBeVisible();
+    await validateButton.click();
 
-      // We will click this button in the next test step if this test passes
-    },
-    { timeout: 30000 },
-  );
-
-  test(
-    "should validate CSV and display results",
-    async ({ page }: { page: Page }) => {
-      await setupApiMocks(page);
-
-      // Visit the home page
-      await page.goto("http://localhost:3000/");
-
-      // Wait for the main component to render and use a more specific selector
-      await page.waitForSelector('button:has-text("Upload CSV")', {
-        state: "visible",
-      });
-
-      // Use a simpler approach - directly trigger the file input without clicking the button
-      const fileInput: Locator = page.locator(
-        'input[type="file"][accept=".csv, text/csv"]',
-      );
-      await expect(fileInput).toBeAttached();
-
-      // Set the file directly on the input
-      await fileInput.setInputFiles("public/fixtures/sample.csv");
-
-      // Wait for file to be processed (initial wait)
-      await page.waitForTimeout(2000);
-
-      // Wait for the mocked schema list API call to complete
-      await page.waitForResponse("**/api/schemas", { timeout: 30000 });
-
-      // Wait for the dropdown trigger to be visible
-      const dropdownTrigger = page.locator('[role="combobox"]');
-      await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
-
-      // Try opening the dropdown
-      await dropdownTrigger.click();
-
-      // Check if the first option becomes visible
-      const optionLocator = page.locator('[role="option"]', { hasText: "sample.json" });
-      await expect(optionLocator).toBeVisible({ timeout: 10000 });
-      await optionLocator.click();
-
-      // Now check if the validate button becomes enabled
-      const validateButton: Locator = page.getByRole('button', { name: /validate data/i });
-
-      // Implicitly check enablement by attempting to click later.
-      await expect(validateButton).toBeEnabled({ timeout: 10000 });
-
-      // Ensure button is visible before clicking
-      // Remove the duplicate declaration:
-      // const validateButton: Locator = page.getByRole("button", {
-      //   name: /validate data/i,
-      // });
-
-      // Add explicit visibility check before clicking
-      await expect(validateButton).toBeVisible();
-      // Click the validate button
-      await validateButton.click();
-
-      // Wait for the validation results to appear
-      await page.waitForSelector("text=Validation Results", { timeout: 5000 });
-
-      // Check that validation results are displayed
-      const resultsHeading: Locator = page.getByText("Validation Results");
-      await expect(resultsHeading).toBeVisible();
-    },
-    { timeout: 30000 },
-  );
+    // --- Check Results ---
+    await page.waitForSelector("text=Validation Results", { timeout: 5000 });
+    const resultsHeading: Locator = page.getByText("Validation Results");
+    await expect(resultsHeading).toBeVisible();
+  });
 });

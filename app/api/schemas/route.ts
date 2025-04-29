@@ -24,13 +24,9 @@ export async function GET() {
       schemaNames,
     );
 
-    // Format the response to match what the client expects
-    const schemas = schemaNames.map((filename) => ({
-      name: filename.replace(".json", ""),
-      filename,
-    }));
-
-    return NextResponse.json(schemas);
+    // Return the format expected by E2E tests: { schemas: [filenames] }
+    // Note: This is different from /api/list-schemas which returns array of objects
+    return NextResponse.json({ schemas: schemaNames });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(

@@ -29,19 +29,24 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  
+
   // Configure build optimizations
   experimental: {
     optimizeCss: false,
-    optimizePackageImports: ['react', 'react-dom'],
+    optimizePackageImports: ["react", "react-dom"],
   },
-  
+
+  // Include schemas/v1 in build output
+  outputFileTracingIncludes: {
+    '/api/list-schemas': ['./schemas/v1/**/*'],
+  },
+
   // Increase memory limit for builds
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 4,
   },
-  
+
   // TypeScript settings
   typescript: {
     ignoreBuildErrors: false,

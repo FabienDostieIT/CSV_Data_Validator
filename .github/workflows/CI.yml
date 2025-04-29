@@ -11,8 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read # Needed to checkout the repository
+    env: # Add job-level env vars
+      ACTIONS_RUNNER_DEBUG: true
+      ACTIONS_STEP_DEBUG: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check VERCEL env var
+        run: |
+          echo "VERCEL value: $VERCEL"
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -51,6 +58,15 @@ jobs:
           NODE_OPTIONS: "--max_old_space_size=4096"
           NEXTJS_DEBUG: 1
 
+      - name: Check Schemas in Build Output
+        run: |
+          echo "Checking build output (.next)..."
+          ls -R .next
+          echo "Finished checking build output."
+
+      - name: Update apt packages
+        run: sudo apt-get update -y
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
@@ -59,5 +75,3 @@ jobs:
 
       - name: Run Playwright e2e tests
         run: pnpm test:e2e
-
-      
