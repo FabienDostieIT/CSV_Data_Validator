@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read # Needed to checkout the repository
+      pull-requests: write # Needed for PR comments
+      deployments: write # Needed for GitHub deployments
     env: # Add job-level env vars
       ACTIONS_RUNNER_DEBUG: true
       ACTIONS_STEP_DEBUG: true
@@ -22,7 +24,10 @@ jobs:
           echo "VERCEL value: $VERCEL"
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+          run_install: false
 
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
@@ -30,17 +35,17 @@ jobs:
           node-version: 20
           cache: "pnpm"
 
-      # Setup .next/cache directory cache
+      # Setup .next/cache directory cache with 2025-compatible approach
       - name: Setup Next.js cache
         uses: actions/cache@v4
         with:
           path: |
             .next/cache
             ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
-            ${{ runner.os }}-nextjs-
+            ${{ runner.os }}-${{ runner.arch }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-${{ runner.arch }}-nextjs-
 
       - name: Install dependencies
         run: pnpm install
@@ -75,3 +80,17 @@ jobs:
 
       - name: Run Playwright e2e tests
         run: pnpm test:e2e
+
+      # Create a Vercel preview deployment for PR using modern 2025 approach
+      - name: Deploy Preview to Vercel
+        if: github.event_name == 'pull_request'
+        uses: BetaHuhn/deploy-to-vercel-action@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PRODUCTION: false
+          DEPLOY_PR_FROM_FORK: false
+          CREATE_COMMENT: true
+          GITHUB_DEPLOYMENT: true

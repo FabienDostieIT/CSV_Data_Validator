@@ -1,35 +1,19 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (DEPRECATED - See vercel.yml)
 
 on:
-  push:
-    branches: [main]
+  # Removed automatic triggers
+  workflow_dispatch:
 
+# Note: This workflow is deprecated and has been replaced by the Vercel deployment workflow
+# See vercel.yml for the active deployment workflow
+# IMPORTANT: This workflow will not be supported after GitHub Actions changes in 2025
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed to push to gh-pages branch
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build and export
+      - name: Deployment Placeholder
         run: |
-          pnpm build
-          pnpm run export
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./out
+          echo "This workflow is deprecated. Please use the Vercel workflow instead."
+          echo "See .github/workflows/vercel.yml for production deployments."

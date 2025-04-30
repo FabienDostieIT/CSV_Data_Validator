@@ -23,6 +23,10 @@ lib-cov
 coverage
 *.lcov
 
+# Test results and reports
+playwright-report/
+test-results/
+
 # nyc test coverage
 .nyc_output
 
@@ -119,3 +123,10 @@ LocalCsvDataValidator/
 
 csv
 .vercel
+.secrets
+
+# Act testing files
+act-secrets.sh
+act.md
+.github/workflows/test-events/
+.act-secrets

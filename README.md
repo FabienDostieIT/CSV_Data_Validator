@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Ajv](https://img.shields.io/badge/Validation-Ajv-orange?style=flat-square)](https://ajv.js.org/)
 [![UI](https://img.shields.io/badge/UI-Shadcn/ui-black?style=flat-square)](https://ui.shadcn.com/)
-[![CI Status](https://github.com/FabienDostieIT/CSV_Data_Validator/actions/workflows/CI.yml/badge.svg)](https://github.com/FabienDostieIT/CSV_Data_Validator/actions/workflows/CI.yml)
+[![CI Status](https://github.com/fabiendostie/CSV_Data_Validator/actions/workflows/CI.yml/badge.svg)](https://github.com/fabiendostie/CSV_Data_Validator/actions/workflows/CI.yml)
 
 A modern, browser-based tool for validating, editing, and ensuring compliance of CSV data against predefined or custom JSON schemas. Built with Next.js, TypeScript, and Shadcn/ui.
 
@@ -106,9 +106,61 @@ pnpm e2e
 
 - **CI (`.github/workflows/CI.yml`):** Runs automatically on pushes/PRs to `main` and `develop`. Includes lint, format check, full tests (`pnpm test`), build, and E2E tests.
 - **CodeQL (`.github/workflows/codeql-analysis.yml`):** Performs security analysis.
-- **CD (`.github/workflows/CD.yml`):** Deploys the static export to GitHub Pages from the `main` branch.
-- **Static Export:** Generated via `pnpm build && pnpm run export` (outputs to `./out`).
-- **GitHub Pages:** Configure repo settings to serve from the `gh-pages` branch.
+- **Vercel Deployment (`.github/workflows/vercel.yml`):** Deploys the application to Vercel from the `main` branch using `BetaHuhn/deploy-to-vercel-action@v1`.
+- **Preview Deployments:** Automatically creates preview deployments for pull requests with PR comments showing deployment URLs.
+- **Vercel Configuration:** Uses `vercel.json` to define build settings and other configuration.
+- **2025 Compatibility:** All workflows are updated to use the latest GitHub Actions (v4+) and include the 2025-compatible cache keys that will remain functional after the April 2025 GitHub cache service changes.
+
+### Setting up Vercel Deployment
+
+To set up deployments to Vercel, you need to add the following secrets to your GitHub repository:
+
+1. `VERCEL_TOKEN`: Your Vercel API token
+2. `VERCEL_PROJECT_ID`: Your Vercel project ID
+3. `VERCEL_ORG_ID`: Your Vercel organization ID
+4. `GITHUB_TOKEN`: Automatically provided by GitHub Actions
+
+You can obtain the Vercel values from the Vercel dashboard or by running:
+
+```bash
+vercel link
+```
+
+These secrets are required for both the production deployment workflow (`vercel.yml`) and the preview deployments in the CI workflow.
+
+### Testing GitHub Actions Locally
+
+This project includes tools to test GitHub Actions workflows locally before pushing changes to GitHub:
+
+1. Install [act](https://github.com/nektos/act) if you haven't already:
+
+   ```bash
+   # Linux/macOS with Homebrew
+   brew install act
+
+   # Or with npm
+   npm install -g @nektos/act
+   ```
+
+2. Use the provided script to securely test workflows:
+
+   ```bash
+   # Source the script to load the function
+   source act-secrets.sh
+
+   # Test the Vercel deployment workflow
+   run_act_workflow .github/workflows/vercel.yml push
+
+   # Test the CI workflow with PR preview
+   run_act_workflow .github/workflows/CI.yml pull_request
+   ```
+
+The script will prompt for your GitHub and Vercel credentials, which are never stored on disk and only kept in memory during the test.
+
+You'll need to create:
+
+- A [GitHub Personal Access Token](https://github.com/settings/tokens) with `repo` scope
+- Vercel credentials as mentioned in the deployment section
 
 ---
 

@@ -1,0 +1,3 @@
+# Configuration for act
+--container-architecture linux/amd64
+# Use environment variables for secrets instead of a file 

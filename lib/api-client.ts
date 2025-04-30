@@ -86,7 +86,7 @@ export async function getSchemaByName(
 /**
  * Generate a basic markdown representation of a schema object on the client side
  * This is used as a fallback when the API endpoint is not available
- * 
+ *
  * @param {Record<string, unknown>} schema - The schema object
  * @returns {string} - The generated markdown
  */
@@ -130,7 +130,7 @@ function generateClientSideMarkdown(schema: Record<string, unknown>): string {
  * Generate documentation for a schema
  * Uses API endpoint in development mode with a fallback to client-side generation
  * Uses client-side generation in production mode
- * 
+ *
  * @param {Record<string, unknown>} schema - The schema object
  * @returns {Promise<{markdown: string}>}
  */
@@ -156,7 +156,7 @@ export async function generateSchemaDocumentation(
   try {
     // Use the absolute path to ensure the request works correctly
     const url = "/api/generate-schema-doc";
-    
+
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -170,14 +170,18 @@ export async function generateSchemaDocumentation(
     return (await response.json()) as { markdown: string };
   } catch (error) {
     console.error("Error fetching schema documentation:", error);
-    
+
     // Check if it's a network error (connection refused)
-    if (error instanceof Error && 
-        (error.message.includes('Failed to fetch') || 
-         error.message.includes('Network Error') ||
-         error.message.includes('Connection refused'))) {
-      console.log("API endpoint unavailable, falling back to client-side generation");
-      
+    if (
+      error instanceof Error &&
+      (error.message.includes("Failed to fetch") ||
+        error.message.includes("Network Error") ||
+        error.message.includes("Connection refused"))
+    ) {
+      console.log(
+        "API endpoint unavailable, falling back to client-side generation",
+      );
+
       // Fall back to client-side generation
       try {
         return { markdown: generateClientSideMarkdown(schema) };
@@ -185,10 +189,10 @@ export async function generateSchemaDocumentation(
         console.error("Error in client-side fallback:", fallbackError);
       }
     }
-    
+
     // If not a network error or client-side fallback failed, return error message
     return {
-      markdown: `# Error Loading Documentation\n\n${error instanceof Error ? error.message : 'Unknown error'}`
+      markdown: `# Error Loading Documentation\n\n${error instanceof Error ? error.message : "Unknown error"}`,
     };
   }
 }
