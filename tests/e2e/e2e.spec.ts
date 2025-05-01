@@ -97,7 +97,7 @@ test.describe("CSV Data Validator E2E", () => {
     await page.goto("http://localhost:3000/");
 
     // Wait for API and dropdown
-    await page.waitForResponse("**/api/schemas");
+    await page.waitForResponse("**/api/list-schemas");
     const dropdownTrigger = page.locator('[role="combobox"]');
     await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
     await dropdownTrigger.click();
@@ -122,7 +122,7 @@ test.describe("CSV Data Validator E2E", () => {
     await page.goto("http://localhost:3000/");
 
     // --- Select Schema ---
-    await page.waitForResponse("**/api/schemas");
+    await page.waitForResponse("**/api/list-schemas");
     const dropdownTrigger = page.locator('[role="combobox"]');
     await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
     await dropdownTrigger.click();
@@ -156,7 +156,7 @@ test.describe("CSV Data Validator E2E", () => {
     await page.goto("http://localhost:3000/");
 
     // --- Select Schema ---
-    await page.waitForResponse("**/api/schemas");
+    await page.waitForResponse("**/api/list-schemas");
     const dropdownTrigger = page.locator('[role="combobox"]');
     await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 });
     await dropdownTrigger.click();
