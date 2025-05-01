@@ -7,18 +7,15 @@ try {
   // ignore error
 }
 
+// Determine if this build is specifically for GitHub Pages static export
+const isGithubPagesBuild = process.env.GITHUB_PAGES_BUILD === 'true';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure basePath and assetPrefix conditionally
-  // Use basePath for GitHub Pages only in production & when VERCEL is not set
-  basePath:
-    process.env.NODE_ENV === "production" && !process.env.VERCEL
-      ? "/JSON_Schema_Validator"
-      : "",
-  assetPrefix:
-    process.env.NODE_ENV === "production" && !process.env.VERCEL
-      ? "/JSON_Schema_Validator/"
-      : "/",
+  // Use basePath only for GitHub Pages builds
+  basePath: isGithubPagesBuild ? "/JSON_Schema_Validator" : "",
+  assetPrefix: isGithubPagesBuild ? "/JSON_Schema_Validator/" : "/",
 
   // Add eslint configuration to ignore during builds
   eslint: {
