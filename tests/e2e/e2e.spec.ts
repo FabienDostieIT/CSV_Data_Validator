@@ -10,33 +10,57 @@ test.describe("CSV Data Validator E2E", () => {
   // Helper function to set up API route mocking for all tests
   const setupApiMocks = async (page: Page) => {
     console.log("Setting up API mocks...");
-    // Mock schemas list response
-    await page.route("**/api/schemas", async (route: Route) => {
-      console.log("Intercepted /api/schemas");
+    // Mock schemas list response - Updated Endpoint
+    await page.route("**/api/list-schemas", async (route: Route) => {
+      console.log("Intercepted /api/list-schemas");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          schemas: ["event.json", "place.json"],
+          schemas: ["event.json", "place.json"], // Ensure this matches expected schema names
         }),
       });
     });
 
-    // Mock individual schema content response
-    await page.route("**/api/schemas/event*", async (route: Route) => {
-      console.log("Intercepted /api/schemas/event*");
+    // Mock individual schema content response for event - Updated Endpoint
+    await page.route("**/api/get-schema/event*", async (route: Route) => {
+      console.log("Intercepted /api/get-schema/event*");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           content: {
             $schema: "http://json-schema.org/draft-07/schema#",
-            title: "Sample Schema",
+            title: "Event Schema", // Use a distinct title for clarity
             type: "object",
             properties: {
               id: { type: "string" },
               name: { type: "string" },
+              date: { type: "string", format: "date" },
             },
+            required: ["id", "name", "date"],
+          },
+        }),
+      });
+    });
+
+    // Mock individual schema content response for place - Added Mock
+    await page.route("**/api/get-schema/place*", async (route: Route) => {
+      console.log("Intercepted /api/get-schema/place*");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: {
+            $schema: "http://json-schema.org/draft-07/schema#",
+            title: "Place Schema", // Use a distinct title for clarity
+            type: "object",
+            properties: {
+              placeId: { type: "string" },
+              address: { type: "string" },
+              city: { type: "string" },
+            },
+            required: ["placeId", "address"],
           },
         }),
       });

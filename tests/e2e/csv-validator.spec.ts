@@ -21,10 +21,10 @@ test.describe("CSV Data Validator Application", () => {
     // Set up page object
     csvValidatorPage = new CSVValidatorPage(page);
 
-    // Set up API mocks for consistent testing
+    // Set up API mocks for consistent testing (BEFORE navigation)
     await setupApiMocks(page);
 
-    // Navigate to application
+    // Navigate to application (AFTER mocks are set up)
     await csvValidatorPage.goto();
   });
 
@@ -153,8 +153,8 @@ A schema for validating data.
    * Test 1: Schema dropdown population and selection
    */
   test("should populate and allow selection from schema dropdown", async () => {
-    // Wait for schemas to load in dropdown
-    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled();
+    // Wait for schemas to load and dropdown to be enabled (due to mocked API call)
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
 
     // Open dropdown and verify schemas are listed
     await csvValidatorPage.schemaDropdownTrigger.click();
@@ -181,6 +181,8 @@ A schema for validating data.
    * Test 2: Schema documentation panel toggle and content
    */
   test("should toggle schema documentation panel and display content", async () => {
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
     // First select a schema
     await csvValidatorPage.selectSchema("event");
 
@@ -208,6 +210,8 @@ A schema for validating data.
    * Test 3: CSV file upload functionality
    */
   test("should upload and display CSV file content", async () => {
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
     // First select a schema
     await csvValidatorPage.selectSchema("event");
 
@@ -235,6 +239,8 @@ A schema for validating data.
     // Initially, validate button should be disabled
     await expect(csvValidatorPage.validateButton).toBeDisabled();
 
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
     // Select a schema, button should still be disabled
     await csvValidatorPage.selectSchema("event");
     await expect(csvValidatorPage.validateButton).toBeDisabled();
@@ -254,7 +260,9 @@ A schema for validating data.
    * Test 5: Validation results display for valid CSV
    */
   test("should validate and display success for valid CSV", async () => {
-    // Set up test with schema and valid CSV
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
+    // Select schema and upload valid CSV
     await csvValidatorPage.selectSchema("event");
     const sampleCsvPath = path.join(
       process.cwd(),
@@ -277,7 +285,9 @@ A schema for validating data.
    * Test 6: Validation results display for invalid CSV
    */
   test("should validate and display errors for invalid CSV", async () => {
-    // Set up test with schema and invalid CSV
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
+    // Select schema and upload invalid CSV
     await csvValidatorPage.selectSchema("event");
     const invalidCsvPath = path.join(
       process.cwd(),
@@ -305,7 +315,9 @@ A schema for validating data.
    * Test 7 (Optional): Error highlighting when clicking on errors
    */
   test("should highlight CSV line when clicking on error", async () => {
-    // Set up test with schema and invalid CSV
+    // Wait for dropdown to be enabled
+    await expect(csvValidatorPage.schemaDropdownTrigger).toBeEnabled({ timeout: 10000 });
+    // Select schema, upload invalid CSV, and validate
     await csvValidatorPage.selectSchema("event");
     const invalidCsvPath = path.join(
       process.cwd(),
