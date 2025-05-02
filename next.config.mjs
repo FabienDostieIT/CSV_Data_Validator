@@ -31,6 +31,7 @@ const nextConfig = {
   // Include schemas/v1 in build output
   outputFileTracingIncludes: {
     "/api/list-schemas": ["./schemas/v1/**/*"],
+    "/api/get-schema/*": ["./schemas/v1/**/*"],
   },
 
   // Increase memory limit for builds
