@@ -51,7 +51,10 @@ export async function GET(request: Request, context: any) {
   }
 
   try {
-    const schemasDir = path.resolve("./public/api/schemas");
+    // In Vercel serverless functions, files included via outputFileTracingIncludes
+    // are typically relative to process.cwd(). Our config includes './schemas/v1/**/*'.
+    const schemasDir = path.join(process.cwd(), "schemas", "v1");
+
     const filePath = safeJoin(schemasDir, `${safeSchemaName}.json`);
 
     if (!filePath) {
